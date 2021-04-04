@@ -1,0 +1,48 @@
+{
+    "LAST PRESET": "Sauvegarde principale",
+    "PRESET": {
+        "super save": {
+            "OPTIONS": {
+                "MT": 128,
+                "PURGE": true,
+                "E": false,
+                "R": 0,
+                "W": 1,
+                "XO": false
+            },
+            "SRC": [
+                "D:/Documents"
+            ],
+            "DST": {
+                "0": [
+                    "D28C-ED7B",
+                    "E:/Test1"
+                ]
+            }
+        },
+        "Sauvegarde principale": {
+            "OPTIONS": {
+                "MT": 12,
+                "PURGE": false,
+                "E": true,
+                "R": 3,
+                "W": 5,
+                "XO": true
+            },
+            "SRC": [
+                "D:/Documents",
+                "D:/Musique",
+                "D:/Telechargements",
+                "D:/Images",
+                "D:/Vid\u00e9os",
+                "C:/Users/shx/Desktop"
+            ],
+            "DST": {
+                "0": [
+                    "52A7-4712",
+                    "S:/Save"
+                ]
+            }
+        }
+    }
+}
