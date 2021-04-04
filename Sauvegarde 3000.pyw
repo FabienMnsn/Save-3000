@@ -3,7 +3,7 @@ import json
 import os
 #import shutil
 import subprocess
-#from threading import *
+from threading import *
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
