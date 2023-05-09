@@ -4,44 +4,94 @@ import random
 import time
 import distutils
 import multiprocessing
+import subprocess
 
 
 def GetCPUcount():
 	return multiprocessing.cpu_count()
 
 
-def carre(number):
+def carre(number, lock):
 	for n in number:
+		while(lock[0]):
+			time.sleep(0.3)
+		lock[0] = True
 		print('[', threading.get_ident(),'] : ', n, '^ 2 = ', n*n)
-		time.sleep(1)
+		lock[0] = False
+		time.sleep(0.7)
 
 
-def cube(number):
+def cube(number, lock):
 	for n in number:
+		while(lock[0]):
+			time.sleep(0.3)
+		lock[0] = True
 		print('[', threading.get_ident(),'] : ', n, '^ 3 = ', n*n*n)
+		lock[0] = False
 		time.sleep(0.5)
 
 
-if __name__ == '__main__':
-    num = [i for i in range(1)]
-    #num = [1, 2, 3, 4, 5, 6, 7]
-    print('[PP] : ', os.getpid())
-    plist = []
-    for i in range(2):
-    	if(i%2 == 0):
-    		p = threading.Thread(target=carre, args=(num,))
-    	else:
-    		p = threading.Thread(target=cube, args=(num,))
-    	plist.append(p)
-    
-    for i in range(len(plist)):
-    	plist[i].start()
+def systemCall(command):
+		p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+		return str(p.stdout.read())[3:-1]
 
-    try:
-    	distutils.file_util.copy_file("./test.txt", "./test/test.txt", update=1)
-    except:
-    	print("Error distutils")
-    print("CPU : ", GetCPUcount())
+
+def listDiskID():
+		diskID = {}
+		r = []
+		d = os.popen("fsutil fsinfo drives").readlines()
+		if(len(d) > 1):
+			d = d[1]
+			for c in ['\\', '\n', ' ']:
+				d = d.replace(c, "")
+			for e in d.split(':'):
+				if(len(e) == 1):
+					r.append(e)
+		else:
+			return None
+		for disk in r:
+			res = systemCall("dir "+disk+":")
+			res = res.split('\\r\\n')
+			if(len(res) >= 2):
+				res = res[1]
+				if('-' in res):
+					res = res.split(' ')[-1]
+					diskID[disk] = res
+			else:
+				continue
+		return diskID
+
+
+if __name__ == '__main__':
+	print(listDiskID())
+
+	lock = [False]
+	num = [i for i in range(3)]
+	#num = [1, 2, 3, 4, 5, 6, 7]
+	print('[PP] : ', os.getpid())
+	plist = []
+	for i in range(2):
+		if(i%2 == 0):
+			p = threading.Thread(target=carre, args=(num, lock,))
+		else:
+			p = threading.Thread(target=cube, args=(num, lock,))
+		plist.append(p)
+	
+	# Starting all threads
+	for i in range(len(plist)):
+		plist[i].start()
+
+	# Waiting for all threads to finish
+	for p in plist:
+		p.join()
+
+	try:
+		if(not(os.path.exists("./test/") and os.path.isdir("./test/"))):
+			os.makedirs("./test/", exist_ok=True)
+		distutils.file_util.copy_file("./test.txt", "./test/test.txt", update=1)
+	except:
+		print("Error distutils")
+	print("CPU : ", GetCPUcount())
 
 
 
