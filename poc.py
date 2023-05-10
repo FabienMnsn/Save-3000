@@ -5,6 +5,8 @@ import time
 import distutils
 import multiprocessing
 import subprocess
+import sys
+import hashlib
 
 
 def GetCPUcount():
@@ -32,35 +34,55 @@ def cube(number, lock):
 
 
 def systemCall(command):
-		p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
-		return str(p.stdout.read())[3:-1]
+	p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+	return str(p.stdout.read())[3:-1]
 
 
 def listDiskID():
-		diskID = {}
-		r = []
-		d = os.popen("fsutil fsinfo drives").readlines()
-		if(len(d) > 1):
-			d = d[1]
-			for c in ['\\', '\n', ' ']:
-				d = d.replace(c, "")
-			for e in d.split(':'):
-				if(len(e) == 1):
-					r.append(e)
+	diskID = {}
+	r = []
+	d = os.popen("fsutil fsinfo drives").readlines()
+	if(len(d) > 1):
+		d = d[1]
+		for c in ['\\', '\n', ' ']:
+			d = d.replace(c, "")
+		for e in d.split(':'):
+			if(len(e) == 1):
+				r.append(e)
+	else:
+		return None
+	for disk in r:
+		res = systemCall("dir "+disk+":")
+		res = res.split('\\r\\n')
+		if(len(res) >= 2):
+			res = res[1]
+			if('-' in res):
+				res = res.split(' ')[-1]
+				diskID[disk] = res
 		else:
-			return None
-		for disk in r:
-			res = systemCall("dir "+disk+":")
-			res = res.split('\\r\\n')
-			if(len(res) >= 2):
-				res = res[1]
-				if('-' in res):
-					res = res.split(' ')[-1]
-					diskID[disk] = res
-			else:
-				continue
-		return diskID
+			continue
+	return diskID
 
+
+def calculateHashFile(f1):
+	BUF_SIZE = 65536
+	sha1 = hashlib.sha1()
+	with open(f1, 'rb') as f:
+		while True:
+			data = f.read(BUF_SIZE)
+			if not data:
+				break
+			sha1.update(data)
+	return sha1.hexdigest()
+
+
+def hasFileChanged(f1,f2):
+	return calculateHashFile(f1) != calculateHashFile(f2)
+
+
+
+
+# --------------------------------------
 
 if __name__ == '__main__':
 	print(listDiskID())
@@ -93,9 +115,15 @@ if __name__ == '__main__':
 		print("Error distutils")
 	print("CPU : ", GetCPUcount())
 
+	start_time = time.time()
+	r = calculateHashFile("./test.txt")
+	print("Hash exec time :", time.time() - start_time)
+	print(r)
+	print(hasFileChanged("./test.txt", "./test1.txt"))
 
 
 
+# https://stackoverflow.com/questions/22878743/how-to-split-dictionary-into-multiple-dictionaries-fast
 
 
 """
