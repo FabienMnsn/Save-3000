@@ -87,39 +87,38 @@ def packSliceDict(d, slices):
 	return res
 
 
-def splitDict(d, slices):
-	keys = list(d.keys())
-	for i in range(0, len(keys), slices):
-		yield {k: d[k] for k in keys[i: i + slices]}
-
-
-def splitDict(d, slices):
-	if(len(d)//(slices-1) == 1):
-		for i in range(0, len(keys), slices):
-			print("WIP")
-
-
-def test():
+def splitDict(d, s):
+	# d : dict
+	# s : number of batch to split the dict into, ex: s=20 will split d in 20 sub dict
 	res = []
-	s = 19
-	d = {i: i for i in range(24)}
 	keys = list(d.keys())
+	q = len(d) // s
+	r = len(d) % s
+	if(r != 0):
+		# split equally
 
-	if(len(d)//s == (1 or 0)):
-		print("1 or 0,", len(d)%s)
-		for i in range(0, len(d), s):
-			print("WIP")
+		for i in range(0, q*s, q + R):
+			res.append({k: d[k] for k in keys[i: i+q]})
+		# add reminder in the last dict (need a better repartition of the reminder on each dict)
+		# for i in range(q*s, len(d)):
+		#	res[-1][keys[i]] = d[keys[i]]
+
 
 	else:
-		for i in range(0, len(d), s):
-			res.append({k: d[k] for k in keys[i: i+s]})
-	print(res)
+		for i in range(0, len(d), q):
+			res.append({k: d[k] for k in keys[i: i+q]})
+	return res
 
 
 # --------------------------------------
 
 if __name__ == '__main__':
 	
+
+	# Thread pool
+	# fonction main qui donne un fichier à copier à chaque thread du pool
+	# https://docs.python.org/3/library/concurrent.futures.html
+
 	"""
 	print(listDiskID())
 
@@ -165,7 +164,10 @@ if __name__ == '__main__':
 		print(i)
 
 	"""
-	test()
+	d = {i: i for i in range(39)}
+	res = splitDict(d, GetCPUcount())
+	print(len(res))
+	print(res)
 # https://stackoverflow.com/questions/22878743/how-to-split-dictionary-into-multiple-dictionaries-fast
 
 
