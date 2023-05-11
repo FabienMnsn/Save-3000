@@ -80,11 +80,47 @@ def hasFileChanged(f1,f2):
 	return calculateHashFile(f1) != calculateHashFile(f2)
 
 
+def packSliceDict(d, slices):
+	res = []
+	for item in splitDict(d, slices):
+		res.append(item)
+	return res
+
+
+def splitDict(d, slices):
+	keys = list(d.keys())
+	for i in range(0, len(keys), slices):
+		yield {k: d[k] for k in keys[i: i + slices]}
+
+
+def splitDict(d, slices):
+	if(len(d)//(slices-1) == 1):
+		for i in range(0, len(keys), slices):
+			print("WIP")
+
+
+def test():
+	res = []
+	s = 19
+	d = {i: i for i in range(24)}
+	keys = list(d.keys())
+
+	if(len(d)//s == (1 or 0)):
+		print("1 or 0,", len(d)%s)
+		for i in range(0, len(d), s):
+			print("WIP")
+
+	else:
+		for i in range(0, len(d), s):
+			res.append({k: d[k] for k in keys[i: i+s]})
+	print(res)
 
 
 # --------------------------------------
 
 if __name__ == '__main__':
+	
+	"""
 	print(listDiskID())
 
 	lock = [False]
@@ -121,8 +157,15 @@ if __name__ == '__main__':
 	print(r)
 	print(hasFileChanged("./test.txt", "./test1.txt"))
 
+	d = {i: i for i in range(24)}
+	print("Slices :", round(len(d)/GetCPUcount()), ", CPU :", GetCPUcount(), ", len(d) :", len(d))
+	res = packSliceDict(d, round(len(d)//(GetCPUcount())) + len(d)%GetCPUcount())
+	print(len(res))
+	for i in res:
+		print(i)
 
-
+	"""
+	test()
 # https://stackoverflow.com/questions/22878743/how-to-split-dictionary-into-multiple-dictionaries-fast
 
 
