@@ -94,15 +94,19 @@ def splitDict(d, s):
 	keys = list(d.keys())
 	q = len(d) // s
 	r = len(d) % s
+	R = 1
+	c = 0
 	if(r != 0):
 		# split equally
-
+		# NOT WORKING AT ALL
 		for i in range(0, q*s, q + R):
-			res.append({k: d[k] for k in keys[i: i+q]})
+			if(c == s):
+				R = 0
+			c+=1
+			res.append({k: d[k] for k in keys[i: i+q+R]})
 		# add reminder in the last dict (need a better repartition of the reminder on each dict)
 		# for i in range(q*s, len(d)):
 		#	res[-1][keys[i]] = d[keys[i]]
-
 
 	else:
 		for i in range(0, len(d), q):
@@ -164,7 +168,7 @@ if __name__ == '__main__':
 		print(i)
 
 	"""
-	d = {i: i for i in range(39)}
+	d = {i: i for i in range(48)}
 	res = splitDict(d, GetCPUcount())
 	print(len(res))
 	print(res)
