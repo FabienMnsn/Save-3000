@@ -1,9 +1,12 @@
 import threading
+import hashlib
 from threading import Lock
 from multiprocessing.dummy import Pool
 from multiprocessing import cpu_count
 import time
 import random
+import os
+import shutil
 
 def GetCPUcount():
 	#print(cpu_count())
@@ -131,6 +134,24 @@ def Poool(pathSet):
 	PL.release()
 
 
+
+
+def calculateHashFile(f1):
+	BUF_SIZE = 65536
+	sha1 = hashlib.sha1()
+	with open(f1, 'rb') as f:
+		while True:
+			data = f.read(BUF_SIZE)
+			if not data:
+				break
+			sha1.update(data)
+	return sha1.hexdigest()
+
+
+def hasFileChanged(f1,f2):
+	if(os.path.exists(f1) and os.path.exists(f2)):
+		return calculateHashFile(f1) != calculateHashFile(f2)
+
 # --------------------------------------
 
 
@@ -141,5 +162,29 @@ if __name__ == '__main__':
 	#dummyPool(d)
 
 	S = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}
-	Poool(S)
+	#Poool(S)
 	#print(printSet(S))
+
+	#print(os.path.isfile('c:/otherproject/save-3000/in/a1/a3/data.docx'))
+	#print(os.path.isfile('c:/otherproject/save-3000/in/a1/a2'))
+	#print(os.path.isdir('c:/otherproject/save-3000/in/a1/a2'))
+	#print(os.path.isdir('c:/otherproject/save-3000/in/a1/a3/data.docx'))
+
+	src = 'c:/otherproject/save-3000/in/A1/A3/data.docx'
+	#print('c:/otherproject/save-3000/in/a1/a3/data.docx'.split('/')[-2])
+	parent_path = os.path.dirname(os.path.splitdrive('c:/otherproject/save-3000/in/A1/A3/data.docx')[1])
+	file_name = os.path.basename(os.path.splitdrive('c:/otherproject/save-3000/in/a1/a3/data.docx')[1])
+	destination = 'G:/save'
+	print(destination+parent_path+'/'+file_name)
+
+	if(os.path.exists(destination+parent_path+'/'+file_name)):
+		if(hasFileChanged(src, destination+parent_path+'/'+file_name)):
+			print("File changed !")
+			shutil.copy2(src, destination+parent_path+'/'+file_name)
+	else:
+		if(not os.path.exists(destination+parent_path+'/'+file_name)):
+			os.makedirs(destination+parent_path, exist_ok=True)
+			shutil.copy2(src, destination+parent_path+'/'+file_name)
+		#try:
+		#	shutil.copy2()
+

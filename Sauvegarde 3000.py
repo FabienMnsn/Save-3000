@@ -1,9 +1,12 @@
 import time
 import json
 import os
-#import shutil
+import shutil
 import subprocess
-from threading import *
+import threading
+from threading import Lock
+from multiprocessing.dummy import Pool
+from multiprocessing import cpu_count
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
@@ -15,7 +18,7 @@ from tkinter import font as tkFont
 
 class App():
 	def __init__(self):
-		self.root = Tk()	  
+		self.root = Tk()
 		# theme and font color
 		self.root.title("Sauvegarde 3000")
 		self.root.minsize(664, 373)
@@ -52,8 +55,17 @@ class App():
 		self.current_preset = None
 		self.current_options = None
 
-		# COPY THREAD
-		self.thread = None 
+		
+
+		# THREADS
+		self.mainWatcherThread = None
+		self.threadPool = None
+
+		# DATA SET & LIST
+		self.srcSet = None
+		self.dstList = None
+
+
 
 		# PRESET FRAME
 		self.preset_frame = LabelFrame(self.main_frame, text="Préréglages", font=self.main_font, labelanchor="n", borderwidth=1, bg=self.main_theme, fg=self.text_color)
@@ -171,33 +183,171 @@ class App():
 	def resetProgress(self):
 		self.progress['value'] = 0
 
-	def incrementProgresss(self):
+	def incrementProgress(self):
 		self.progress['value'] += 1
+
+	def setProgress(self, value):
+		self.progress['value'] = value
 
 
 	def startThreadedSave(self):
 		res = self.showYesNo("Attention", "Etes-vous sûr de vouloir\nlancer la sauvegarde?")
 		if(res):
-			self.thread = Thread(target=self.startSave)
-			self.thread.deamon = True
-			self.setMaxProgress(len(self.getAllSRC())*len(self.getAllDST()))
-			self.lockButtons()
-			self.thread.start()
+			self.startSave()
+			#self.thread = Thread(target=self.startSave)
+			#self.thread = Thread(target=self.dummy)
+			#self.thread.deamon = True
+			#self.setMaxProgress(len(self.getAllSRC())*len(self.getAllDST()))
+			#self.lockButtons()
+			#self.thread.start()
+
+	def dummy(self):
+		src = self.getAllSRC()
+		print(src)
+		self.parseSRC(src)
+		self.resetProgress()
+		self.unlockButtons()
+
+
+	def parseSRC(self, src_list):
+		res = set()
+		for src in src_list:
+			for root, dirs, files in os.walk(src):
+				if(len(files) == 0):
+					res.add(os.path.normcase(root).replace('\\', '/'))
+				for f in files:
+					res.add(os.path.normcase(os.path.join(root, f)).replace('\\', '/'))
+		print(res)
+		return res
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	def calculateHashFile(f1):
+		BUF_SIZE = 65536
+		sha1 = hashlib.sha1()
+		with open(f1, 'rb') as f:
+			while True:
+				data = f.read(BUF_SIZE)
+				if not data:
+					break
+				sha1.update(data)
+		return sha1.hexdigest()
+
+
+	def hasFileChanged(f1,f2):
+		if(os.path.exists(f1) and os.path.exists(f2)):
+			return calculateHashFile(f1) != calculateHashFile(f2)
+
 
 
 	def startSave(self):
-		options = self.optionsToString()
-		dst = self.getAllDST()
-		src = self.getAllSRC()
-		for d in dst:
-			for s in src:
-				last_folder_src = s.split('/')[-1]
-				command = "robocopy "+'"'+s+'"'+" "+'"'+d+"/"+last_folder_src+'"'+" "+options
-				res = self.systemCall(command)
-				self.incrementProgresss()
-		self.showInfo("Sauvegarde", "Sauvegarde terminée !\nEmplacement de la sauvegarde : "+", ".join(dst))
+		self.dstList = self.getAllDST()
+		self.srcSet = self.parseSRC(self.getAllSRC())
+		self.threadPool = Pool()
+		PATH_SET_LOCK = Lock()
+		PRINT_LOCK = Lock()
+		self.mainWatcherThread = threading.Thread(target=self.mainWatcher, args=(self.srcSet, PRINT_LOCK,)).start()
+		#cpt = 0
+		#while True:
+			#self.threadPool.apply_async(self.task, args=(self.srcSet, 4, self.dstList, PATH_SET_LOCK, PRINT_LOCK))
+			#if(len(self.srcSet) == 0):
+			#	print("break:", cpt)
+			#	break
+			#cpt+=1
+		result = self.threadPool.apply_async(self.task, args=(self.srcSet, 4, self.dstList, PATH_SET_LOCK, PRINT_LOCK))
+		result.wait()
+		#print(f"CPT "+str(cpt))
+		print(self.threadPool)
+		#self.threadPool.close()
+		#self.threadPool.join()
+		PRINT_LOCK.acquire()
+		print(f"Done")
+		#print(type(printSet(pathSet)))
+		PRINT_LOCK.release()
+		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
 		self.resetProgress()
 		self.unlockButtons()
+
+
+	def mainWatcher(self, srcSet, printLock):
+		initSize = len(srcSet)
+		self.setMaxProgress(initSize)
+		while True:
+			if(len(srcSet) == 0):
+				#printLock.acquire()
+				self.setProgress(initSize - len(srcSet))
+				#print(f"Updating loading bar", initSize - len(srcSet))
+				#printLock.release()
+				break
+			#printLock.acquire()
+			#print(f"Updating loading bar", initSize - len(srcSet))
+			self.setProgress(initSize - len(srcSet))
+			#print(srcSet)
+			#printLock.release()
+
+
+	def task(self, srcSet, elements, dest, pathSetLock, printLock):
+		tmpList = []
+		pathSetLock.acquire()
+		for i in range(elements):
+			tmpList.append(srcSet.pop())
+		pathSetLock.release()
+		printLock.acquire()
+		print(f"Thread:", threading.get_ident(), tmpList)
+		printLock.release()
+		for d in dest:
+			for p in tmpList:
+				parent_path = os.path.dirname(os.path.splitdrive(p)[1])
+				file_name = os.path.basename(os.path.splitdrive(p)[1])
+				print("Thread:"+str(threading.get_ident())+" : "+p)
+				print("Thread:"+str(threading.get_ident())+" : "+d+parent_path+'/'+file_name)
+
+				if(os.path.exists(d+parent_path+'/'+file_name)):
+					if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
+						shutil.copy2(p, d+parent_path)
+						print("Thread:"+str(threading.get_ident())+", file changed, copying file: "+d+parent_path+'/'+file_name)
+					else:
+						print("Thread:"+str(threading.get_ident())+", file is the same: "+d+parent_path+'/'+file_name)
+				else:
+					os.makedirs(d+parent_path, exist_ok=True)
+					shutil.copy2(p, d+parent_path)
+					print("Thread:"+str(threading.get_ident())+", Create folder at "+d+parent_path+", copying file: "+file_name)
+				printLock.acquire()
+				#copy(p, dest)
+				print(f"Thread:", threading.get_ident(), ", copying:", p, "to destination", printSet(srcSet))
+				printLock.release()
+		#time.sleep(0.5 + random.randint(1, 10))	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 	def optionsToString(self):
@@ -227,9 +377,9 @@ class App():
 
 
 	def on_root_closing(self):
-		if(self.thread != None and self.thread.isAlive()):
-			self.showInfo("Important", "Impossible de quitter l'application,\nune sauvegarde est en cours !")
-			return
+		#if(self.thread != None): #and self.thread.isAlive()):
+		#	self.showInfo("Important", "Impossible de quitter l'application,\nune sauvegarde est en cours !")
+			#return
 		if(self.current_preset != None and self.user_data != None):
 			if(self.user_data["PRESET"] != {}):
 				self.user_data["LAST PRESET"] = self.current_preset

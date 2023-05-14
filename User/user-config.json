@@ -1,5 +1,5 @@
 {
-    "LAST PRESET": "Scroll Test",
+    "LAST PRESET": "Test Repo",
     "PRESET": {
         "super save": {
             "OPTIONS": {
@@ -75,7 +75,7 @@
             ],
             "DST": {}
         },
-        "101": {
+        "Test Repo": {
             "OPTIONS": {
                 "MT": 12,
                 "PURGE": false,
@@ -84,8 +84,15 @@
                 "W": 5,
                 "XO": true
             },
-            "SRC": [],
-            "DST": {}
+            "SRC": [
+                "C:/OtherProject/Save-3000/in"
+            ],
+            "DST": {
+                "0": [
+                    "2429-145B",
+                    "G:/save"
+                ]
+            }
         }
     }
 }
