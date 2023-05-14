@@ -76,8 +76,8 @@ def printSet(setPath):
 	res = "{"
 	for i in setPath:
 		res += str(i)+", "
-	res = res[0:-2]
-	return res+"}"
+	res = res[0:-2]+'}'
+	return res
 
 
 def copy(src, dest):
@@ -89,14 +89,14 @@ def mainWatcher(pathSet, printLock):
 	initSize = len(pathSet)
 	while True:
 		if(len(pathSet) == 0):
-			printLock.acquire()
+			#printLock.acquire()
 			print(f"Updating loading bar", initSize - len(pathSet))
-			printLock.release()
+			#printLock.release()
 			break
-		printLock.acquire()
+		#printLock.acquire()
 		print(f"Updating loading bar", initSize - len(pathSet))
-		#print(pathSet)
-		printLock.release()
+		print(pathSet)
+		#printLock.release()
 
 
 def task(pathSet, elements, dest, pathSetLock, printLock):
@@ -105,9 +105,12 @@ def task(pathSet, elements, dest, pathSetLock, printLock):
 	for i in range(elements):
 		tmpList.append(pathSet.pop())
 	pathSetLock.release()
+	printLock.acquire()
+	print(f"Thread:", threading.get_ident(), tmpList)
+	printLock.release()
 	for p in tmpList:
 		printLock.acquire()
-		copy(p, dest)
+		#copy(p, dest)
 		print(f"Thread:", threading.get_ident(), ", copying:", p, "to destination", printSet(pathSet))
 		printLock.release()
 	#time.sleep(0.5 + random.randint(1, 10))
@@ -119,12 +122,12 @@ def Poool(pathSet):
 	PL = Lock()
 	threading.Thread(target=mainWatcher, args=(pathSet, PL,)).start()
 	while True:
-		pool.apply_async(task, args=(pathSet, 1, "./test", PSL, PL))
+		pool.apply_async(task, args=(pathSet, 4, "./test", PSL, PL))
 		if(len(pathSet) == 0):
 			break
 	PL.acquire()
 	print(f"Done")
-	print(printSet(pathSet))
+	#print(type(printSet(pathSet)))
 	PL.release()
 
 
@@ -139,3 +142,4 @@ if __name__ == '__main__':
 
 	S = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}
 	Poool(S)
+	#print(printSet(S))
