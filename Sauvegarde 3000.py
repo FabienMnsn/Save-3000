@@ -5,8 +5,9 @@ import shutil
 import subprocess
 import threading
 from threading import Lock
-from multiprocessing.dummy import Pool
+#from multiprocessing.dummy import Pool
 from multiprocessing import cpu_count
+from concurrent.futures import ThreadPoolExecutor
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
@@ -254,22 +255,24 @@ class App():
 	def startSave(self):
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
-		self.threadPool = Pool()
+		self.threadPool = ThreadPoolExecutor(cpu_count()) #Pool()
 		PATH_SET_LOCK = Lock()
 		PRINT_LOCK = Lock()
 		self.mainWatcherThread = threading.Thread(target=self.mainWatcher, args=(self.srcSet, PRINT_LOCK,)).start()
 		#cpt = 0
-		#while True:
+		while len(self.srcSet) > 0:
+			w = self.threadPool.submit(self.task, self.srcSet, 1, self.dstList, PATH_SET_LOCK, PRINT_LOCK)
+
 			#self.threadPool.apply_async(self.task, args=(self.srcSet, 4, self.dstList, PATH_SET_LOCK, PRINT_LOCK))
 			#if(len(self.srcSet) == 0):
 			#	print("break:", cpt)
 			#	break
 			#cpt+=1
-		result = self.threadPool.apply_async(self.task, args=(self.srcSet, 4, self.dstList, PATH_SET_LOCK, PRINT_LOCK))
-		result.wait()
+		#result = self.threadPool.apply_async(self.task, args=(self.srcSet, 4, self.dstList, PATH_SET_LOCK, PRINT_LOCK))
+		#result.wait()
 		#print(f"CPT "+str(cpt))
 		print(self.threadPool)
-		#self.threadPool.close()
+		self.threadPool.shutdown()
 		#self.threadPool.join()
 		PRINT_LOCK.acquire()
 		print(f"Done")
@@ -298,6 +301,8 @@ class App():
 
 
 	def task(self, srcSet, elements, dest, pathSetLock, printLock):
+		if(len(srcSet) == 0):
+			return
 		tmpList = []
 		pathSetLock.acquire()
 		for i in range(elements):
@@ -311,21 +316,20 @@ class App():
 				parent_path = os.path.dirname(os.path.splitdrive(p)[1])
 				file_name = os.path.basename(os.path.splitdrive(p)[1])
 				print("Thread:"+str(threading.get_ident())+" : "+p)
-				print("Thread:"+str(threading.get_ident())+" : "+d+parent_path+'/'+file_name)
+				#print("Thread:"+str(threading.get_ident())+" : "+d+parent_path+'/'+file_name)
 
 				if(os.path.exists(d+parent_path+'/'+file_name)):
 					if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
 						shutil.copy2(p, d+parent_path)
-						print("Thread:"+str(threading.get_ident())+", file changed, copying file: "+d+parent_path+'/'+file_name)
-					else:
-						print("Thread:"+str(threading.get_ident())+", file is the same: "+d+parent_path+'/'+file_name)
+						#print("Thread:"+str(threading.get_ident())+", file changed, copying file: "+d+parent_path+'/'+file_name)
+						#print("Thread:"+str(threading.get_ident())+", file is the same: "+d+parent_path+'/'+file_name)
 				else:
 					os.makedirs(d+parent_path, exist_ok=True)
 					shutil.copy2(p, d+parent_path)
-					print("Thread:"+str(threading.get_ident())+", Create folder at "+d+parent_path+", copying file: "+file_name)
+					#print("Thread:"+str(threading.get_ident())+", Create folder at "+d+parent_path+", copying file: "+file_name)
 				printLock.acquire()
 				#copy(p, dest)
-				print(f"Thread:", threading.get_ident(), ", copying:", p, "to destination", printSet(srcSet))
+				#print(f"Thread:", threading.get_ident(), ", copying:", p, "to destination", printSet(srcSet))
 				printLock.release()
 		#time.sleep(0.5 + random.randint(1, 10))	
 

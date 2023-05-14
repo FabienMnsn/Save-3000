@@ -1,5 +1,5 @@
 {
-    "LAST PRESET": "Test Repo",
+    "LAST PRESET": "T",
     "PRESET": {
         "super save": {
             "OPTIONS": {
@@ -75,7 +75,7 @@
             ],
             "DST": {}
         },
-        "Test Repo": {
+        "T": {
             "OPTIONS": {
                 "MT": 12,
                 "PURGE": false,
@@ -90,7 +90,11 @@
             "DST": {
                 "0": [
                     "2429-145B",
-                    "G:/save"
+                    "G:/save/out1"
+                ],
+                "1": [
+                    "2429-145B",
+                    "G:/save/out2"
                 ]
             }
         }
