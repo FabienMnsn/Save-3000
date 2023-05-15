@@ -1,0 +1,26 @@
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\GOODBOY\AppData\Local\Programs\Python\Python311\Lib\tkinter\__init__.py", line 1948, in __call__
+    return self.func(*args)
+           ^^^^^^^^^^^^^^^^
+  File "C:\OtherProject\Save-3000\Sauvegarde 3000.py", line 197, in startThreadedSave
+    self.startSave()
+  File "C:\OtherProject\Save-3000\Sauvegarde 3000.py", line 256, in startSave
+    print(r.result())
+          ^^^^^^^^^^
+  File "C:\Users\GOODBOY\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\GOODBOY\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\GOODBOY\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\OtherProject\Save-3000\Sauvegarde 3000.py", line 319, in task
+    shutil.copy2(p, d+parent_path)
+  File "C:\Users\GOODBOY\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 437, in copy2
+    copystat(src, dst, follow_symlinks=follow_symlinks)
+  File "C:\Users\GOODBOY\AppData\Local\Programs\Python\Python311\Lib\shutil.py", line 376, in copystat
+    lookup("utime")(dst, ns=(st.st_atime_ns, st.st_mtime_ns),
+FileNotFoundError: [WinError 3] Le chemin d’accès spécifié est introuvable: 'D:/save/out1/windows/syswow64\\icuin.dll'
+[Finished in 264.5s]
