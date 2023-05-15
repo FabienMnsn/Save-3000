@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import threading
+import hashlib
 from threading import Lock
 #from multiprocessing.dummy import Pool
 from multiprocessing import cpu_count
@@ -234,7 +235,7 @@ class App():
 
 
 
-	def calculateHashFile(f1):
+	def calculateHashFile(self, f1):
 		BUF_SIZE = 65536
 		sha1 = hashlib.sha1()
 		with open(f1, 'rb') as f:
@@ -246,9 +247,9 @@ class App():
 		return sha1.hexdigest()
 
 
-	def hasFileChanged(f1,f2):
+	def hasFileChanged(self, f1, f2):
 		if(os.path.exists(f1) and os.path.exists(f2)):
-			return calculateHashFile(f1) != calculateHashFile(f2)
+			return self.calculateHashFile(f1) != self.calculateHashFile(f2)
 
 
 
@@ -256,13 +257,14 @@ class App():
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
 		self.threadPool = ThreadPoolExecutor(cpu_count()) #Pool()
+		results = []
 		PATH_SET_LOCK = Lock()
 		PRINT_LOCK = Lock()
 		self.mainWatcherThread = threading.Thread(target=self.mainWatcher, args=(self.srcSet, PRINT_LOCK,)).start()
 		#cpt = 0
 		while len(self.srcSet) > 0:
-			w = self.threadPool.submit(self.task, self.srcSet, 1, self.dstList, PATH_SET_LOCK, PRINT_LOCK)
-
+			w = self.threadPool.submit(self.task, self.srcSet, 10, self.dstList, PATH_SET_LOCK, PRINT_LOCK)
+			results.append(w)
 			#self.threadPool.apply_async(self.task, args=(self.srcSet, 4, self.dstList, PATH_SET_LOCK, PRINT_LOCK))
 			#if(len(self.srcSet) == 0):
 			#	print("break:", cpt)
@@ -271,11 +273,13 @@ class App():
 		#result = self.threadPool.apply_async(self.task, args=(self.srcSet, 4, self.dstList, PATH_SET_LOCK, PRINT_LOCK))
 		#result.wait()
 		#print(f"CPT "+str(cpt))
-		print(self.threadPool)
+		#print(self.threadPool)
+		for r in results:
+			print(r.result())
 		self.threadPool.shutdown()
 		#self.threadPool.join()
 		PRINT_LOCK.acquire()
-		print(f"Done")
+		print(f"Main program is DONE")
 		#print(type(printSet(pathSet)))
 		PRINT_LOCK.release()
 		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
@@ -306,32 +310,43 @@ class App():
 		tmpList = []
 		pathSetLock.acquire()
 		for i in range(elements):
-			tmpList.append(srcSet.pop())
+			if(len(srcSet) > 0):
+				tmpList.append(srcSet.pop())
+			else:
+				break
 		pathSetLock.release()
-		printLock.acquire()
-		print(f"Thread:", threading.get_ident(), tmpList)
-		printLock.release()
+		if(len(tmpList) == 0):
+			return
+		#printLock.acquire()
+		#print(f"Thread:", threading.get_ident(), tmpList)
+		#printLock.release()
 		for d in dest:
 			for p in tmpList:
 				parent_path = os.path.dirname(os.path.splitdrive(p)[1])
 				file_name = os.path.basename(os.path.splitdrive(p)[1])
-				print("Thread:"+str(threading.get_ident())+" : "+p)
+				#print("Thread:"+str(threading.get_ident())+" : "+p)
 				#print("Thread:"+str(threading.get_ident())+" : "+d+parent_path+'/'+file_name)
 
 				if(os.path.exists(d+parent_path+'/'+file_name)):
 					if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
 						shutil.copy2(p, d+parent_path)
-						#print("Thread:"+str(threading.get_ident())+", file changed, copying file: "+d+parent_path+'/'+file_name)
+						print("Thread:"+str(threading.get_ident())+", file changed, copying file: "+d+parent_path+'/'+file_name)
 						#print("Thread:"+str(threading.get_ident())+", file is the same: "+d+parent_path+'/'+file_name)
+					else:
+						print("Thread:"+str(threading.get_ident())+", file hasn't changed, doing nothing")
 				else:
+					print("Thread:"+str(threading.get_ident())+", parent path doesn't exist: "+d+parent_path)
 					os.makedirs(d+parent_path, exist_ok=True)
 					shutil.copy2(p, d+parent_path)
+					print("Thread:"+str(threading.get_ident())+", copying file: "+d+parent_path+'/'+file_name)
+
+		print("Thread:"+str(threading.get_ident())+", DONE WORKING")
 					#print("Thread:"+str(threading.get_ident())+", Create folder at "+d+parent_path+", copying file: "+file_name)
-				printLock.acquire()
+				#printLock.acquire()
 				#copy(p, dest)
 				#print(f"Thread:", threading.get_ident(), ", copying:", p, "to destination", printSet(srcSet))
-				printLock.release()
-		#time.sleep(0.5 + random.randint(1, 10))	
+				#printLock.release()
+		#time.sleep(0.5 + random.randint(1, 10))
 
 
 

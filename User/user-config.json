@@ -1,5 +1,5 @@
 {
-    "LAST PRESET": "T",
+    "LAST PRESET": "TT",
     "PRESET": {
         "super save": {
             "OPTIONS": {
@@ -90,11 +90,30 @@
             "DST": {
                 "0": [
                     "2429-145B",
-                    "G:/save/out1"
+                    "D:/save/out1"
                 ],
                 "1": [
                     "2429-145B",
-                    "G:/save/out2"
+                    "D:/save/out2"
+                ]
+            }
+        },
+        "TT": {
+            "OPTIONS": {
+                "MT": 12,
+                "PURGE": false,
+                "E": true,
+                "R": 3,
+                "W": 5,
+                "XO": true
+            },
+            "SRC": [
+                "C:/Windows/SysWOW64"
+            ],
+            "DST": {
+                "0": [
+                    "2429-145B",
+                    "D:/save/out1"
                 ]
             }
         }
