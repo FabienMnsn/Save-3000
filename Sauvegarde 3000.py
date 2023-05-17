@@ -60,6 +60,8 @@ class App():
 
 		# THREADS
 		self.mainWatcherThread = None
+		self.mainPoolThread = None
+		self.poolThreadList = []
 		self.threadPool = None
 
 		# DATA SET & LIST
@@ -241,29 +243,13 @@ class App():
 	def startSave(self):
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
-		starttime = time.time()
 		self.threadPool = ThreadPoolExecutor(cpu_count()) #Pool()
-		results = []
 		PATH_SET_LOCK = Lock()
 		PRINT_LOCK = Lock()
 		self.mainWatcherThread = threading.Thread(target=self.mainWatcher, args=(self.srcSet, PRINT_LOCK,)).start()
-		#cpt = 0
-		while len(self.srcSet) > 0:
-			w = self.threadPool.submit(self.task, self.srcSet, 10, self.dstList, PATH_SET_LOCK, PRINT_LOCK)
-			results.append(w)
-
-		for r in results:
-			print(r.result())
-		print(f"Execution time (s):", time.time() - starttime)
-		self.threadPool.shutdown()
-		#self.threadPool.join()
-		PRINT_LOCK.acquire()
-		print(f"Main program is DONE")
-		#print(type(printSet(pathSet)))
-		PRINT_LOCK.release()
-		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
-		self.resetProgress()
-		self.unlockButtons()
+		self.lockButtons()
+		self.mainPoolThread = threading.Thread(target=self.mainPoolTask, args=(self.srcSet, self.dstList, PATH_SET_LOCK, PRINT_LOCK,)).start()
+		
 
 
 	def mainWatcher(self, srcSet, printLock):
@@ -271,16 +257,28 @@ class App():
 		self.setMaxProgress(initSize)
 		while True:
 			if(len(srcSet) == 0):
-				#printLock.acquire()
 				self.setProgress(initSize - len(srcSet))
-				#print(f"Updating loading bar", initSize - len(srcSet))
-				#printLock.release()
 				break
-			#printLock.acquire()
-			#print(f"Updating loading bar", initSize - len(srcSet))
 			self.setProgress(initSize - len(srcSet))
-			#print(srcSet)
-			#printLock.release()
+
+
+
+	def mainPoolTask(self, srcSet, dstList, PATH_SET_LOCK, PRINT_LOCK):
+		starttime = time.time()
+		while len(srcSet) > 0:
+			w = self.threadPool.submit(self.task, srcSet, 1, dstList, PATH_SET_LOCK, PRINT_LOCK)
+			self.poolThreadList.append(w)
+
+		for r in results:
+			r.result()
+		print(f"Execution time (s):", time.time() - starttime)
+		self.threadPool.shutdown()
+		PRINT_LOCK.acquire()
+		print(f"Main program is DONE")
+		PRINT_LOCK.release()
+		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
+		self.resetProgress()
+		self.unlockButtons()
 
 
 	def task(self, srcSet, elements, dest, pathSetLock, printLock):
@@ -329,6 +327,7 @@ class App():
 				#print(f"Thread:", threading.get_ident(), ", copying:", p, "to destination", printSet(srcSet))
 				#printLock.release()
 		#time.sleep(0.5 + random.randint(1, 10))
+		time.sleep(10)
 
 
 
@@ -378,9 +377,11 @@ class App():
 
 
 	def on_root_closing(self):
-		#if(self.thread != None): #and self.thread.isAlive()):
-		#	self.showInfo("Important", "Impossible de quitter l'application,\nune sauvegarde est en cours !")
-			#return
+		if(self.threadPool != None):
+			self.threadPool.shutdown()
+		for t in self.poolThreadList:
+			if(t.running()):
+				t.cancel()
 		if(self.current_preset != None and self.user_data != None):
 			if(self.user_data["PRESET"] != {}):
 				self.user_data["LAST PRESET"] = self.current_preset
