@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import threading
 import hashlib
+import logging
 from threading import Lock
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
@@ -56,6 +57,8 @@ class App():
 		self.current_preset = None
 		self.current_options = None
 
+		# LOGGING CONFIGURATION
+		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 		
 
 		# THREADS
@@ -63,6 +66,7 @@ class App():
 		self.mainPoolThread = None
 		self.poolThreadList = []
 		self.threadPool = None
+		self.onCloseLock = Lock()
 
 		# DATA SET & LIST
 		self.srcSet = None
@@ -125,9 +129,9 @@ class App():
 		self.select_folder_SRC_button['command'] = self.addFolderSRC
 		self.select_folder_SRC_button.pack(side=RIGHT, padx=(5,5), pady=(0,5))
 
-		self.select_folder_SRC_button = Button(self.src_button_frame, text="Ajouter fichier", relief="raised", bg=self.main_button_color, fg="white")
-		self.select_folder_SRC_button['command'] = self.addFileSRC
-		self.select_folder_SRC_button.pack(side=RIGHT, padx=(0,0), pady=(0,5))
+		self.select_file_SRC_button = Button(self.src_button_frame, text="Ajouter fichier", relief="raised", bg=self.main_button_color, fg="white")
+		self.select_file_SRC_button['command'] = self.addFileSRC
+		self.select_file_SRC_button.pack(side=RIGHT, padx=(0,0), pady=(0,5))
 
 
 		# DST FRAME
@@ -211,17 +215,6 @@ class App():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 	def calculateHashFile(self, f1):
 		BUF_SIZE = 65536
 		sha1 = hashlib.sha1()
@@ -235,6 +228,7 @@ class App():
 
 
 	def hasFileChanged(self, f1, f2):
+		return True
 		if(os.path.exists(f1) and os.path.exists(f2)):
 			return self.calculateHashFile(f1) != self.calculateHashFile(f2)
 
@@ -243,16 +237,20 @@ class App():
 	def startSave(self):
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
-		self.threadPool = ThreadPoolExecutor(cpu_count()) #Pool()
+		self.threadPool = ThreadPoolExecutor(cpu_count())
 		PATH_SET_LOCK = Lock()
-		PRINT_LOCK = Lock()
-		self.mainWatcherThread = threading.Thread(target=self.mainWatcher, args=(self.srcSet, PRINT_LOCK,)).start()
+		self.mainWatcherThread = threading.Thread(target=self.mainWatcher, args=(self.srcSet,))
+		self.mainWatcherThread.deamon = True
+		self.mainWatcherThread.start()
+
 		self.lockButtons()
-		self.mainPoolThread = threading.Thread(target=self.mainPoolTask, args=(self.srcSet, self.dstList, PATH_SET_LOCK, PRINT_LOCK,)).start()
-		
+
+		self.mainPoolThread = threading.Thread(target=self.mainPoolTask, args=(self.srcSet, self.dstList, PATH_SET_LOCK,))
+		self.mainPoolThread.deamon = True
+		self.mainPoolThread.start()		
 
 
-	def mainWatcher(self, srcSet, printLock):
+	def mainWatcher(self, srcSet):
 		initSize = len(srcSet)
 		self.setMaxProgress(initSize)
 		while True:
@@ -263,25 +261,26 @@ class App():
 
 
 
-	def mainPoolTask(self, srcSet, dstList, PATH_SET_LOCK, PRINT_LOCK):
+	def mainPoolTask(self, srcSet, dstList, PATH_SET_LOCK):
 		starttime = time.time()
 		while len(srcSet) > 0:
-			w = self.threadPool.submit(self.task, srcSet, 1, dstList, PATH_SET_LOCK, PRINT_LOCK)
-			self.poolThreadList.append(w)
+			self.onCloseLock.acquire()
+			if(not self.threadPool._shutdown):
+				w = self.threadPool.submit(self.task, srcSet, 20, dstList, PATH_SET_LOCK)
+				self.poolThreadList.append(w)
+			self.onCloseLock.release()
 
-		for r in results:
+		for r in self.poolThreadList:
 			r.result()
-		print(f"Execution time (s):", time.time() - starttime)
+		logging.info(f"Execution time %ss:", time.time() - starttime)
 		self.threadPool.shutdown()
-		PRINT_LOCK.acquire()
-		print(f"Main program is DONE")
-		PRINT_LOCK.release()
+		logging.info(f"Main program is DONE")
 		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
 		self.resetProgress()
 		self.unlockButtons()
 
 
-	def task(self, srcSet, elements, dest, pathSetLock, printLock):
+	def task(self, srcSet, elements, dest, pathSetLock):
 		if(len(srcSet) == 0):
 			return
 		tmpList = []
@@ -303,50 +302,22 @@ class App():
 					if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
 						try:
 							shutil.copy2(p, d+parent_path)
-							#print("Thread:"+str(threading.get_ident())+", file changed, copying file: "+d+parent_path+'/'+file_name)
-						except PermissionError:
-							#print("Thread:"+str(threading.get_ident())+" Cannot copy file permission denied : "+p)
+							#logging.info("File has changed since last backup, copying new file %s to %s", p, d+parent_path)
+						except Exception as e:
+							#logging.error("Exception occurred", exc_info=True)
 							continue
-						#print("Thread:"+str(threading.get_ident())+", file is the same: "+d+parent_path+'/'+file_name)
-					#else:
-						#print("Thread:"+str(threading.get_ident())+", file hasn't changed, doing nothing")
 				else:
-					#print("Thread:"+str(threading.get_ident())+", parent path doesn't exist: "+d+parent_path)
-					os.makedirs(d+parent_path, exist_ok=True)
+					try:
+						os.makedirs(d+parent_path, exist_ok=True)
+					except Exception as e:
+						print(e)
+						#logging.error(logging.error("Exception occurred", exc_info=True))
 					try:
 						shutil.copy2(p, d+parent_path)
-					except PermissionError:
-						#print("Thread:"+str(threading.get_ident())+" Cannot copy file permission denied : "+p)
+						#logging.info("File has changed since last backup, copying new file %s to %s", p, d+parent_path)
+					except Exception as e:
+						#logging.error("Exception occurred", exc_info=True)
 						continue
-					#print("Thread:"+str(threading.get_ident())+", copying file: "+d+parent_path+'/'+file_name)
-
-		print("Thread:"+str(threading.get_ident())+", DONE WORKING")
-					#print("Thread:"+str(threading.get_ident())+", Create folder at "+d+parent_path+", copying file: "+file_name)
-				#printLock.acquire()
-				#copy(p, dest)
-				#print(f"Thread:", threading.get_ident(), ", copying:", p, "to destination", printSet(srcSet))
-				#printLock.release()
-		#time.sleep(0.5 + random.randint(1, 10))
-		time.sleep(10)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -377,18 +348,25 @@ class App():
 
 
 	def on_root_closing(self):
-		if(self.threadPool != None):
-			self.threadPool.shutdown()
-		for t in self.poolThreadList:
-			if(t.running()):
-				t.cancel()
-		if(self.current_preset != None and self.user_data != None):
-			if(self.user_data["PRESET"] != {}):
-				self.user_data["LAST PRESET"] = self.current_preset
-			else:
-				self.user_data["LAST PRESET"] = ""
-			self.writeUserData()
-		self.root.destroy()
+		res = self.showYesNo("Quitter", "Etes-vous sûr de vouloir quitter le programme avant la fin de la sauvegarde?\n La sauvegarde ne sera pas complète.")
+		if(res):
+			self.onCloseLock.acquire()
+			if(self.threadPool != None):
+				logging.info("Shutting down thread pool")
+				self.threadPool.shutdown(wait=False, cancel_futures=True)
+				logging.info("Canceling all running tasks in thread pool")
+				for t in self.poolThreadList:
+					if(t.running()):
+						t.cancel()
+			self.onCloseLock.release()
+			
+			if(self.current_preset != None and self.user_data != None):
+				if(self.user_data["PRESET"] != {}):
+					self.user_data["LAST PRESET"] = self.current_preset
+				else:
+					self.user_data["LAST PRESET"] = ""
+				self.writeUserData()
+			self.root.destroy()
 
 
 	def openFolderDialog(self):
@@ -867,6 +845,7 @@ class App():
 		self.save_current_preset_button['state'] = DISABLED
 		self.delete_selected_SRC_button['state'] = DISABLED
 		self.select_folder_SRC_button['state'] = DISABLED
+		self.select_file_SRC_button['state'] = DISABLED
 		self.delete_selected_DST_button['state'] = DISABLED
 		self.select_folder_DST_button['state'] = DISABLED
 		self.start_save['state'] = DISABLED
@@ -880,6 +859,7 @@ class App():
 		self.save_current_preset_button['state'] = NORMAL
 		self.delete_selected_SRC_button['state'] = NORMAL
 		self.select_folder_SRC_button['state'] = NORMAL
+		self.select_file_SRC_button['state'] = NORMAL
 		self.delete_selected_DST_button['state'] = NORMAL
 		self.select_folder_DST_button['state'] = NORMAL
 		self.start_save['state'] = NORMAL
