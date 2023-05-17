@@ -60,6 +60,8 @@ class App():
 		# LOGGING CONFIGURATION
 		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 		
+		# BOOLEAN
+		self.saveStarted = False
 
 		# THREADS
 		self.mainWatcherThread = None
@@ -67,6 +69,7 @@ class App():
 		self.poolThreadList = []
 		self.threadPool = None
 		self.onCloseLock = Lock()
+		self.PATH_SET_LOCK = Lock()
 
 		# DATA SET & LIST
 		self.srcSet = None
@@ -237,41 +240,61 @@ class App():
 	def startSave(self):
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
-		self.threadPool = ThreadPoolExecutor(cpu_count())
-		PATH_SET_LOCK = Lock()
-		self.mainWatcherThread = threading.Thread(target=self.mainWatcher, args=(self.srcSet,))
+		#self.threadPool = ThreadPoolExecutor(4)
+		self.mainWatcherThread = threading.Thread(target=self.mainWatcher)
 		self.mainWatcherThread.deamon = True
 		self.mainWatcherThread.start()
 
 		self.lockButtons()
 
-		self.mainPoolThread = threading.Thread(target=self.mainPoolTask, args=(self.srcSet, self.dstList, PATH_SET_LOCK,))
+		self.mainPoolThread = threading.Thread(target=self.mainPoolTask)
 		self.mainPoolThread.deamon = True
-		self.mainPoolThread.start()		
+		self.mainPoolThread.start()
 
 
-	def mainWatcher(self, srcSet):
-		initSize = len(srcSet)
+	def mainWatcher(self):
+		initSize = len(self.srcSet)
 		self.setMaxProgress(initSize)
 		while True:
-			if(len(srcSet) == 0):
-				self.setProgress(initSize - len(srcSet))
+			if(len(self.srcSet) == 0):
+				self.setProgress(initSize - len(self.srcSet))
 				break
-			self.setProgress(initSize - len(srcSet))
+			self.setProgress(initSize - len(self.srcSet))
 
 
+	# BACKUP
+	#def mainPoolTask(self):
+	#	starttime = time.time()
+	#	while len(self.srcSet) > 0:
+	#		self.onCloseLock.acquire()
+	#		if(not self.threadPool._shutdown):
+	#			# w = self.threadPool.submit(self.task, srcSet, 20, dstList, PATH_SET_LOCK)
+	#			w = self.threadPool.submit(self.task, 20)
+	#			self.poolThreadList.append(w)
+	#		self.onCloseLock.release()
+	#
+	#	for r in self.poolThreadList:
+	#		r.result()
+	#	logging.info(f"Execution time %ss:", time.time() - starttime)
+	#	self.threadPool.shutdown()
+	#	logging.info(f"Main program is DONE")
+	#	self.showInfo("Sauvegarde", "Sauvegarde terminée !")
+	#	self.resetProgress()
+	#	self.unlockButtons()
 
-	def mainPoolTask(self, srcSet, dstList, PATH_SET_LOCK):
+
+	def mainPoolTask(self):
 		starttime = time.time()
-		while len(srcSet) > 0:
-			self.onCloseLock.acquire()
-			if(not self.threadPool._shutdown):
-				w = self.threadPool.submit(self.task, srcSet, 20, dstList, PATH_SET_LOCK)
+		with ThreadPoolExecutor(4) as self.threadPool:
+			while len(self.srcSet) > 0:
+				print(vars(self.threadPool))
+				self.onCloseLock.acquire()
+				w = self.threadPool.submit(self.task, 20)
 				self.poolThreadList.append(w)
-			self.onCloseLock.release()
+				self.onCloseLock.release()
 
-		for r in self.poolThreadList:
-			r.result()
+			for r in self.poolThreadList:
+				r.result()
 		logging.info(f"Execution time %ss:", time.time() - starttime)
 		self.threadPool.shutdown()
 		logging.info(f"Main program is DONE")
@@ -280,44 +303,47 @@ class App():
 		self.unlockButtons()
 
 
-	def task(self, srcSet, elements, dest, pathSetLock):
-		if(len(srcSet) == 0):
-			return
-		tmpList = []
-		pathSetLock.acquire()
-		for i in range(elements):
-			if(len(srcSet) > 0):
-				tmpList.append(srcSet.pop())
-			else:
-				break
-		pathSetLock.release()
-		if(len(tmpList) == 0):
-			return
-		for d in dest:
-			for p in tmpList:
-				parent_path = os.path.dirname(os.path.splitdrive(p)[1])
-				file_name = os.path.basename(os.path.splitdrive(p)[1])
+	def task(self, nbElemPerTask):
+		if(True):
+			time.sleep(10)
+		else:
+			if(len(self.srcSet) == 0):
+				return
+			tmpList = []
+			self.pathSetLock.acquire()
+			for i in range(nbElemPerTask):
+				if(len(self.srcSet) > 0):
+					tmpList.append(self.srcSet.pop())
+				else:
+					break
+			self.pathSetLock.release()
+			if(len(tmpList) == 0):
+				return
+			for d in self.dstList:
+				for p in tmpList:
+					parent_path = os.path.dirname(os.path.splitdrive(p)[1])
+					file_name = os.path.basename(os.path.splitdrive(p)[1])
 
-				if(os.path.exists(d+parent_path+'/'+file_name)):
-					if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
+					if(os.path.exists(d+parent_path+'/'+file_name)):
+						if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
+							try:
+								shutil.copy2(p, d+parent_path)
+								#logging.info("File has changed since last backup, copying new file %s to %s", p, d+parent_path)
+							except Exception as e:
+								#logging.error("Exception occurred", exc_info=True)
+								continue
+					else:
+						try:
+							os.makedirs(d+parent_path, exist_ok=True)
+						except Exception as e:
+							print(e)
+							#logging.error(logging.error("Exception occurred", exc_info=True))
 						try:
 							shutil.copy2(p, d+parent_path)
 							#logging.info("File has changed since last backup, copying new file %s to %s", p, d+parent_path)
 						except Exception as e:
 							#logging.error("Exception occurred", exc_info=True)
 							continue
-				else:
-					try:
-						os.makedirs(d+parent_path, exist_ok=True)
-					except Exception as e:
-						print(e)
-						#logging.error(logging.error("Exception occurred", exc_info=True))
-					try:
-						shutil.copy2(p, d+parent_path)
-						#logging.info("File has changed since last backup, copying new file %s to %s", p, d+parent_path)
-					except Exception as e:
-						#logging.error("Exception occurred", exc_info=True)
-						continue
 
 
 

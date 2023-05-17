@@ -1,5 +1,5 @@
 {
-    "LAST PRESET": "TT",
+    "LAST PRESET": "TTT",
     "PRESET": {
         "super save": {
             "OPTIONS": {
@@ -114,6 +114,25 @@
                 "0": [
                     "2429-145B",
                     "D:/save/out1"
+                ]
+            }
+        },
+        "TTT": {
+            "OPTIONS": {
+                "MT": 12,
+                "PURGE": false,
+                "E": true,
+                "R": 3,
+                "W": 5,
+                "XO": true
+            },
+            "SRC": [
+                "C:/Users/SHX/Desktop/save/telechargements/psp/ppsspp_win"
+            ],
+            "DST": {
+                "0": [
+                    "F847-5D3A",
+                    "C:/Users/SHX/Desktop/save"
                 ]
             }
         }
