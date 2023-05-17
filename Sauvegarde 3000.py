@@ -285,12 +285,13 @@ class App():
 
 	def mainPoolTask(self):
 		starttime = time.time()
-		with ThreadPoolExecutor(4) as self.threadPool:
+		with ThreadPoolExecutor(2) as self.threadPool:
 			while len(self.srcSet) > 0:
-				print(vars(self.threadPool))
+				#print(vars(self.threadPool))
 				self.onCloseLock.acquire()
-				w = self.threadPool.submit(self.task, 20)
-				self.poolThreadList.append(w)
+				if(not self.threadPool._shutdown):
+					w = self.threadPool.submit(self.task, 200)
+					self.poolThreadList.append(w)
 				self.onCloseLock.release()
 
 			for r in self.poolThreadList:
