@@ -1,138 +1,14 @@
 {
-    "LAST PRESET": "TTT",
+    "LAST PRESET": "PSP",
     "PRESET": {
-        "super save": {
-            "OPTIONS": {
-                "MT": 128,
-                "PURGE": true,
-                "E": false,
-                "R": 0,
-                "W": 1,
-                "XO": false
-            },
-            "SRC": [
-                "D:/Documents"
-            ],
-            "DST": {
-                "0": [
-                    "D28C-ED7B",
-                    "E:/Test1"
-                ]
-            }
-        },
-        "Sauvegarde principale": {
-            "OPTIONS": {
-                "MT": 12,
-                "PURGE": false,
-                "E": true,
-                "R": 3,
-                "W": 5,
-                "XO": true
-            },
-            "SRC": [
-                "D:/Documents",
-                "D:/Musique",
-                "D:/Telechargements",
-                "D:/Images",
-                "D:/Vid\u00e9os",
-                "C:/Users/shx/Desktop"
-            ],
-            "DST": {
-                "0": [
-                    "52A7-4712",
-                    "S:/Save"
-                ]
-            }
-        },
-        "Scroll Test": {
-            "OPTIONS": {
-                "MT": 12,
-                "PURGE": false,
-                "E": true,
-                "R": 3,
-                "W": 5,
-                "XO": true
-            },
-            "SRC": [
-                "D:/Documents",
-                "D:/Musique",
-                "D:/Telechargements",
-                "D:/Images",
-                "D:/Vid\u00e9os",
-                "C:/Users/shx/Desktop",
-                "D:/Musique/SoundSample",
-                "D:/Musique/SoundSample/Tiger sound startup_data",
-                "D:/Musique/SoundSample/Tiger sound startup_data/e08",
-                "D:/Musique/Deezloader",
-                "D:/Musique/Deezloader/Davodka",
-                "D:/Musique/Deezloader/Davodka/Accus\u00e9 de r\u00e9flexion/01 - Accus\u00e9 de r\u00e9flexion chapitre 1.mp3",
-                "D:/Musique/Deezloader/Davodka/Accus\u00e9 de r\u00e9flexion/02 - Fus\u00e9e de d\u00e9tresse.mp3",
-                "D:/Musique/Deezloader/Davodka/Accus\u00e9 de r\u00e9flexion/05 - Vrai combat.mp3",
-                "D:/Musique/Deezloader/Davodka/Accus\u00e9 de r\u00e9flexion/06 - Accus\u00e9 de r\u00e9flexion chapitre 2.mp3",
-                "D:/Musique/Deezloader/Davodka/Accus\u00e9 de r\u00e9flexion/10 - \u00c7a reste \u00e0 boire.mp3",
-                "D:/Musique/Deezloader/Davodka/Accus\u00e9 de r\u00e9flexion/cover.jpg",
-                "D:/Musique/Deezloader/Django Reinhardt"
-            ],
-            "DST": {}
-        },
-        "T": {
-            "OPTIONS": {
-                "MT": 12,
-                "PURGE": false,
-                "E": true,
-                "R": 3,
-                "W": 5,
-                "XO": true
-            },
-            "SRC": [
-                "C:/OtherProject/Save-3000/in"
-            ],
-            "DST": {
-                "0": [
-                    "2429-145B",
-                    "D:/save/out1"
-                ],
-                "1": [
-                    "2429-145B",
-                    "D:/save/out2"
-                ]
-            }
-        },
-        "TT": {
-            "OPTIONS": {
-                "MT": 12,
-                "PURGE": false,
-                "E": true,
-                "R": 3,
-                "W": 5,
-                "XO": true
-            },
-            "SRC": [
-                "C:/Windows/SysWOW64"
-            ],
-            "DST": {
-                "0": [
-                    "2429-145B",
-                    "D:/save/out1"
-                ]
-            }
-        },
-        "TTT": {
-            "OPTIONS": {
-                "MT": 12,
-                "PURGE": false,
-                "E": true,
-                "R": 3,
-                "W": 5,
-                "XO": true
-            },
+        "PSP": {
             "SRC": [
                 "D:/Telechargements/PSP/ppsspp_win"
             ],
             "DST": {
                 "0": [
                     "F847-5D3A",
-                    "C:/Users/SHX/Desktop/save"
+                    "C:/Users/SHX/Desktop/empty"
                 ]
             }
         }

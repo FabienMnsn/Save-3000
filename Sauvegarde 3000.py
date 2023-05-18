@@ -12,7 +12,6 @@ from concurrent.futures import ThreadPoolExecutor
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
-from tkinter.ttk import Combobox
 from tkinter.ttk import Progressbar
 from tkinter import filedialog
 from tkinter import font as tkFont
@@ -39,7 +38,7 @@ class App():
 		# MENU BAR
 		self.menubar = Menu(self.root, bg=self.main_theme, fg=self.text_color, activebackground="white", activeforeground='black')
 		self.file = Menu(self.menubar, tearoff=0, bg=self.main_theme, fg=self.text_color, font=self.main_font)
-		self.file.add_command(label="Réglages", command=self.openPreferencesWindow)
+		self.file.add_command(label="Informations", command=self.showPermissionDeniedFiles)
 		self.file.add_separator()
 		self.file.add_command(label="Quitter", command=self.on_root_closing)
 		self.menubar.add_cascade(label="Fichier", menu=self.file)
@@ -55,7 +54,6 @@ class App():
 		# USER DATA
 		self.user_data = None
 		self.current_preset = None
-		self.current_options = None
 
 		# LOGGING CONFIGURATION
 		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
@@ -70,12 +68,13 @@ class App():
 		self.threadPool = None
 		self.onCloseLock = Lock()
 		self.PATH_SET_LOCK = Lock()
+		self.SAVING = False
 
 		# DATA SET & LIST
 		self.srcSet = None
 		self.dstList = None
 		self.permissionDeniedFiles = []
-
+		self.oldSRCList = []
 
 
 		# PRESET FRAME
@@ -139,7 +138,7 @@ class App():
 
 
 		# DST FRAME
-		self.dst_frame = LabelFrame(self.folders_panedWindow, text="Dossiers de sauvegarde", font=self.main_font, labelanchor="n", borderwidth=1, bg=self.main_theme, fg=self.text_color)
+		self.dst_frame = LabelFrame(self.folders_panedWindow, text="Dossier(s) de sauvegarde", font=self.main_font, labelanchor="n", borderwidth=1, bg=self.main_theme, fg=self.text_color)
 		self.dst_frame.pack(side=RIGHT, expand=True, fill=BOTH)
 		self.folders_panedWindow.add(self.dst_frame)
 
@@ -155,6 +154,8 @@ class App():
 
 		self.dst_listbox = Listbox(self.dst_listboxFrame, bg=self.main_theme, fg=self.text_color, width=65, height=1, selectmode=MULTIPLE, yscrollcommand=self.dst_yscrollbar.set, xscrollcommand=self.dst_xscrollbar.set)
 		self.dst_listbox.pack(side=TOP, expand=True, fill=BOTH, padx=(5,5), pady=(5,5))
+		self.src_yscrollbar.config(command=self.dst_listbox.yview)
+		self.src_xscrollbar.config(command=self.dst_listbox.xview)
 
 		self.dst_button_frame = Frame(self.dst_frame, bg=self.main_theme)
 		self.dst_button_frame.pack(side=TOP, fill=X)
@@ -172,6 +173,10 @@ class App():
 		self.progressBarFrame = Frame(self.main_frame, bg=self.main_theme)
 		self.progressBarFrame.pack(side=BOTTOM, expand=False, fill=X, padx=0, pady=0)
 
+		# FILE COUNTER
+		self.fileCounter = Label(self.progressBarFrame, text="...", font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, justify=CENTER)
+		self.fileCounter.pack(side=TOP, fill=X, anchor=N, padx=(0,0), pady=(0,0))
+
 		# PROGRESS BAR
 		self.progress = Progressbar(self.progressBarFrame, orient=HORIZONTAL, maximum=100)
 		self.progress.pack(side=TOP, expand=False, fill=X, padx=5, pady=5)
@@ -184,8 +189,7 @@ class App():
 		self.loadUserData()
 		self.updatePresetMenu()
 		self.loadLastPreset()
-
-
+		self.updateFileCounter()
 
 
 	def setMaxProgress(self, value):
@@ -202,29 +206,50 @@ class App():
 
 
 	def startThreadedSave(self):
+		if(self.getAllDST() == []):
+			self.showError("Erreur", "Aucun dossier de destination na été spécifié pour la sauvegarde.")
+			return
 		res = self.showYesNo("Attention", "Etes-vous sûr de vouloir\nlancer la sauvegarde?")
 		if(res):
 			self.startSave()
 
-	# BACKUP			
-	#def parseSRC(self, src_list):
-	#	res = set()
-	#	for src in src_list:
-	#		for root, dirs, files in os.walk(src):
-	#			if(len(files) == 0):
-	#				res.add(os.path.normcase(root).replace('\\', '/'))
-	#			for f in files:
-	#				res.add(os.path.normcase(os.path.join(root, f)).replace('\\', '/'))
-	#	return res
+
+	def updateFileCounter(self):
+		currentSRCList = self.getAllSRC()
+		self.oldSRCList.sort()
+		currentSRCList.sort()
+		if(currentSRCList != self.oldSRCList):
+			self.fileCounter['text'] = "Updating"
+			ttfiles = self.countSRC(self.getAllSRC())
+			self.fileCounter['text'] = "0 / "+str(ttfiles)+" file(s)"
+
+
+	def countSRC(self, src_list):
+		tt = 0
+		try:
+			for src in src_list:
+				if(os.path.isfile(src)):
+						tt += 1
+				for root, dirs, files in os.walk(src):
+					for f in files:
+						tt += 1
+			return tt
+		except Exception as e:
+				logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
+
 
 	def parseSRC(self, src_list):
 		res = set()
-		for src in src_list:
-			for root, dirs, files in os.walk(src):
-				for f in files:
-					res.add(os.path.join(root, f).replace('\\', '/'))
-		return res
-
+		try:
+			for src in src_list:
+				if(os.path.isfile(src)):
+					res.add(src)
+				for root, dirs, files in os.walk(src):
+					for f in files:
+						res.add(os.path.join(root, f).replace('\\', '/'))
+			return res
+		except Exception as e:
+				logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
 
 
 	def calculateHashFile(self, f1):
@@ -246,6 +271,7 @@ class App():
 
 
 	def startSave(self):
+		self.SAVING = True
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
 		self.mainWatcherThread = threading.Thread(target=self.mainWatcher)
@@ -263,11 +289,14 @@ class App():
 		logging.info(f"[THREAD_ID:%s] Main watcher tread started", threading.get_ident())
 		initSize = len(self.srcSet)
 		self.setMaxProgress(initSize)
+		self.fileCounter['text'] = "0 / "+str(initSize)+" file(s)"
 		while True:
 			if(len(self.srcSet) == 0):
 				self.setProgress(initSize - len(self.srcSet))
+				self.fileCounter['text'] = str(initSize - len(self.srcSet))+" / "+str(initSize)+" file(s)"
 				break
 			self.setProgress(initSize - len(self.srcSet))
+			self.fileCounter['text'] = str(initSize - len(self.srcSet))+" / "+str(initSize)+" file(s)"
 		logging.info(f"[THREAD_ID:%s] Main watcher tread finished", threading.get_ident())
 
 
@@ -282,7 +311,7 @@ class App():
 				if(self.threadPool._work_queue.qsize() < 5):
 					self.onCloseLock.acquire()
 					if(not self.threadPool._shutdown):
-						w = self.threadPool.submit(self.task, 10)
+						w = self.threadPool.submit(self.task, 4)
 						self.poolThreadList.append(w)
 					self.onCloseLock.release()
 		for r in self.poolThreadList:
@@ -292,6 +321,10 @@ class App():
 		self.threadPool.shutdown()
 		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
 		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
+		self.SAVING = False
+		if(len(self.permissionDeniedFiles) > 0):
+			self.showPermissionDeniedFiles()
+		self.updateFileCounter()
 		self.resetProgress()
 		self.unlockButtons()
 
@@ -342,55 +375,40 @@ class App():
 						continue
 
 
-
-	def optionsToString(self):
-		opt = ""
-		if(self.current_options != None):
-			for key in self.current_options.keys():
-				if(type(self.current_options[key]) == int):
-					opt += "/"+key+":"+str(self.current_options[key])+" "
-				else:
-					if(self.current_options[key]):
-						opt += "/"+key+" "
-		return opt
-
-
 	def loadLastPreset(self):
 		if(self.user_data != None):
 			if(self.user_data["LAST PRESET"] != ""):
 				self.current_preset = self.user_data["LAST PRESET"]
 				self.updateCurrentPresetLabel()
-			if(self.user_data["PRESET"] != {}):
-				if(self.user_data["PRESET"][self.current_preset]["OPTIONS"] != {}):
-					self.loadOptions()
-				if(self.user_data["PRESET"][self.current_preset]["SRC"] != []):
-					self.loadSRC()
-				if(self.user_data["PRESET"][self.current_preset]["DST"] != {}):
-					self.loadDST()
+				if(self.user_data["PRESET"] != {}):
+					if(self.user_data["PRESET"][self.current_preset]["SRC"] != {}):
+						self.loadSRC()
+					if(self.user_data["PRESET"][self.current_preset]["DST"] != {}):
+						self.loadDST()
 
 
 	def on_root_closing(self):
-		print(self.permissionDeniedFiles)
-		res = self.showYesNo("Quitter", "Etes-vous sûr de vouloir quitter le programme avant la fin de la sauvegarde?\n La sauvegarde ne sera pas complète.")
-		if(res):
-			logging.info("User has closed main window")
-			self.onCloseLock.acquire()
-			if(self.threadPool != None):
-				logging.info("Shutting down thread pool")
-				self.threadPool.shutdown(wait=False, cancel_futures=True)
-				logging.info("Canceling all running tasks in thread pool")
-				for t in self.poolThreadList:
-					if(t.running()):
-						t.cancel()
-			self.onCloseLock.release()
-			
-			if(self.current_preset != None and self.user_data != None):
-				if(self.user_data["PRESET"] != {}):
-					self.user_data["LAST PRESET"] = self.current_preset
-				else:
-					self.user_data["LAST PRESET"] = ""
-				self.writeUserData()
-			self.root.destroy()
+		if(self.SAVING):
+			res = self.showYesNo("Quitter", "Etes-vous sûr de vouloir quitter le programme avant la fin de la sauvegarde?\n La sauvegarde ne sera pas complète.")
+			if(res):
+				logging.info("User has closed main window")
+				self.onCloseLock.acquire()
+				if(self.threadPool != None):
+					logging.info("Shutting down thread pool")
+					self.threadPool.shutdown(wait=False, cancel_futures=True)
+					logging.info("Canceling all running tasks in thread pool")
+					for t in self.poolThreadList:
+						if(t.running()):
+							t.cancel()
+				self.onCloseLock.release()
+		
+		if(self.current_preset != None and self.user_data != None):
+			if(self.user_data["PRESET"] != {}):
+				self.user_data["LAST PRESET"] = self.current_preset
+			else:
+				self.user_data["LAST PRESET"] = ""
+			self.writeUserData()
+		self.root.destroy()
 
 
 	def openFolderDialog(self):
@@ -402,8 +420,8 @@ class App():
 
 
 	def saveCurrentPreset(self, name):
-		if(self.user_data != None and self.current_options != None):
-			self.user_data["PRESET"][name] = {"OPTIONS":self.current_options,"SRC":self.getAllSRC(),"DST":self.getDST()}
+		if(self.user_data != None):
+			self.user_data["PRESET"][name] = {"SRC":self.getAllSRC(),"DST":self.getDST()}
 			self.current_preset = name
 			self.updateCurrentPresetLabel()
 			self.writeUserData()
@@ -415,6 +433,7 @@ class App():
 			if(res):
 				if(self.current_preset in list(self.user_data["PRESET"].keys())):
 					self.user_data["PRESET"].pop(self.current_preset)
+					self.user_data["LAST PRESET"] = ""
 					self.current_preset = None
 					self.updateCurrentPresetLabel()
 					self.cleanSRCDST()
@@ -441,6 +460,7 @@ class App():
 		self.updateCurrentPresetLabel()
 		self.loadSRC()
 		self.loadDST()
+		self.updateFileCounter()
 
 
 	def openNameInputWindow(self):
@@ -451,6 +471,7 @@ class App():
 		self.main_input_frame = LabelFrame(self.pop_up, text="Nom du préréglage", font=frame_font, labelanchor="n", borderwidth=0, bg=self.main_theme, fg="white")
 		self.main_input_frame.pack(side=TOP)
 		self.name_entry = Entry(self.main_input_frame, bg=self.main_theme_light, bd=0, width=25, font=self.main_font, fg=self.text_color)
+		self.name_entry.focus_set()
 		self.name_entry.pack(side=LEFT, padx=5, pady=5)
 		self.save_button = Button(self.main_input_frame, text="Enregistrer et quitter", relief="raised", bg=self.main_button_color, fg="white")
 		self.save_button['command'] = lambda window=self.pop_up:self.saveInputName(window)
@@ -461,107 +482,6 @@ class App():
 		self.saveCurrentPreset(self.name_entry.get())
 		self.updatePresetMenu()
 		window.destroy()
-
-
-	def openPreferencesWindow(self):
-		self.sub_win = Toplevel(self.root)
-		self.sub_win.resizable(False, False)
-		self.sub_win.grab_set()
-		# main sub window frame
-		frame_font = tkFont.Font(size=13, weight="bold")
-		self.main_preference_frame = LabelFrame(self.sub_win, text="Options de sauvegarde", font=frame_font, labelanchor="n", borderwidth=0, bg=self.main_theme, fg="white")
-		self.main_preference_frame.pack(side=TOP)
-		# ROBOCOPY OPTIONS LIST
-		# MT
-		self.mt_frame = LabelFrame(self.main_preference_frame, bd=2, bg=self.main_theme)
-		self.mt_frame.pack(side=TOP, fill=X, padx=10, pady=10)
-		# mt label 
-		self.mt_label = Label(self.mt_frame, text="Nombre de sous processus pour la copie :", font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, anchor=W)
-		self.mt_label.pack(side=LEFT, fill=X, padx=2, pady=2)
-		# mt value entry
-		self.mt_entry = Entry(self.mt_frame, bg=self.main_theme_light, bd=0, width=6, font=self.main_font, fg=self.text_color)
-		self.mt_entry.pack(side=LEFT, padx=2, pady=2)
-		# PURGE
-		self.purge_frame = LabelFrame(self.main_preference_frame, bd=2, bg=self.main_theme)
-		self.purge_frame.pack(side=TOP, fill=X, padx=10, pady=10)
-		# mt label 
-		self.purge_label = Label(self.purge_frame, text="Supprimer les fichiers et dossiers de la\ndestination qui n'existent plus dans la source", font=self.main_font, height=2, bg=self.main_theme, fg=self.text_color, anchor=W, justify=LEFT)
-		self.purge_label.pack(side=LEFT, fill=X, padx=2, pady=2)
-		# mt value entry
-		self.purge_ck_var = BooleanVar()
-		self.purge_ck = Checkbutton(self.purge_frame, bg=self.main_theme, bd=2, variable=self.purge_ck_var, onvalue=True, offvalue=False)
-		self.purge_ck.pack(side=LEFT, padx=2, pady=2)
-		# EMPTY FOLDER COPY
-		self.e_frame = LabelFrame(self.main_preference_frame, bd=2, bg=self.main_theme)
-		self.e_frame.pack(side=TOP, fill=X, padx=10, pady=10)
-		# mt label 
-		self.e_label = Label(self.e_frame, text="Copier les sous dossiers vides", font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, anchor=W, justify=LEFT)
-		self.e_label.pack(side=LEFT, fill=X, padx=2, pady=2)
-		# mt value entry
-		self.e_ck_var = BooleanVar()
-		self.e_ck = Checkbutton(self.e_frame, bg=self.main_theme, bd=2, variable=self.e_ck_var, onvalue=True, offvalue=False)
-		self.e_ck.pack(side=LEFT, padx=2, pady=2)
-		# RETRIES
-		self.r_frame = LabelFrame(self.main_preference_frame, bd=2, bg=self.main_theme)
-		self.r_frame.pack(side=TOP, fill=X, padx=10, pady=10)
-		# mt label 
-		self.r_label = Label(self.r_frame, text="Nombre de tentative si la copie échoue :", font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, anchor=W)
-		self.r_label.pack(side=LEFT, fill=X, padx=2, pady=2)
-		# mt value entry
-		self.r_entry = Entry(self.r_frame, bg=self.main_theme_light, bd=0, width=6, font=self.main_font, fg=self.text_color)
-		self.r_entry.pack(side=LEFT, padx=2, pady=2)
-		# WAIT TIME
-		self.w_frame = LabelFrame(self.main_preference_frame, bd=2, bg=self.main_theme)
-		self.w_frame.pack(side=TOP, fill=X, padx=10, pady=10)
-		# mt label 
-		self.w_label = Label(self.w_frame, text="Temps d'attente (secondes) entre chaque tentative :", font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, anchor=W)
-		self.w_label.pack(side=LEFT, fill=X, padx=2, pady=2)
-		# mt value entry
-		self.w_entry = Entry(self.w_frame, bg=self.main_theme_light, bd=0, width=6, font=self.main_font, fg=self.text_color)
-		self.w_entry.pack(side=LEFT, padx=2, pady=2)
-		# OLD FOLDER COPY
-		self.o_frame = LabelFrame(self.main_preference_frame, bd=2, bg=self.main_theme)
-		self.o_frame.pack(side=TOP, fill=X, padx=10, pady=10)
-		# mt label 
-		self.o_label = Label(self.o_frame, text="Exclure les fichiers plus anciens", font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, anchor=W, justify=LEFT)
-		self.o_label.pack(side=LEFT, fill=X, padx=2, pady=2)
-		# mt value entry
-		self.o_ck_var = BooleanVar()
-		self.o_ck = Checkbutton(self.o_frame, bg=self.main_theme, bd=2, variable=self.o_ck_var, onvalue=True, offvalue=False)
-		self.o_ck.pack(side=LEFT, padx=2, pady=2)
-
-		self.validation_frame = Frame(self.main_preference_frame, borderwidth=0, bg=self.main_theme)
-		self.validation_frame.pack(side=TOP, padx=10, pady=10)
-		# validation button
-		self.validate_button = Button(self.validation_frame, text="Enregistrer et quitter", relief="raised", bg=self.main_button_color, fg="white")
-		self.validate_button['command'] = lambda window=self.sub_win:self.saveAndExitPreferences(window)
-		self.validate_button.pack(side=TOP)
-		if(self.user_data != None):
-			self.loadPreferences()
-
-
-	def loadPreferences(self):
-		if(len(list(self.user_data["PRESET"].keys())) > 0 and self.current_preset in list(self.user_data["PRESET"].keys())):
-			udo = self.user_data["PRESET"][str(self.current_preset)]["OPTIONS"]
-			self.mt_entry.delete(0, 'end')
-			self.mt_entry.insert(0, udo["MT"])
-			self.purge_ck_var.set(udo["PURGE"])
-			self.e_ck_var.set(udo["E"])
-			self.r_entry.delete(0, 'end')
-			self.r_entry.insert(0, udo["R"])
-			self.w_entry.delete(0, 'end')
-			self.w_entry.insert(0, udo["W"])
-			self.o_ck_var.set(udo["XO"])
-
-
-	def getOptionsPreferences(self):
-		res = {"MT":int(self.mt_entry.get()),"PURGE":self.purge_ck_var.get(),"E":self.e_ck_var.get(),"R":int(self.r_entry.get()),"W":int(self.w_entry.get()),"XO":self.o_ck_var.get()}
-		return res
-
-
-	def loadOptions(self):
-		if(self.user_data != None and self.user_data["PRESET"] != {} and self.current_preset in list(self.user_data["PRESET"].keys()) and self.user_data["PRESET"][self.current_preset]["OPTIONS"] != {}):
-			self.current_options = self.user_data["PRESET"][self.current_preset]["OPTIONS"]
 
 
 	def cleanSRCDST(self):
@@ -587,7 +507,7 @@ class App():
 					self.dst_listbox.insert(index, path)
 					index += 1
 				else:
-					self.showError("Erreur", "Le lecteur de destination est absent ou la lettre de lecteur et son numéro de série ne correspondent pas pour le chemin enregistré dans les préférences:\n"+path)
+					self.showError("Erreur", "Le lecteur de destination est absent ou la lettre de lecteur et son numéro de série ne correspondent pas pour le chemin enregistré dans \"Dossier(s) de sauvegarde\" :\n"+path)
 
 			return
 			for i in range(len(dst_list)):
@@ -602,70 +522,6 @@ class App():
 			if(dst_list[i][0] in list(diskID.keys())):
 				res[i] = [diskID[dst_list[i][0]], dst_list[i]]
 		return res
-
-
-	def saveAndExitPreferences(self, window):
-		options = []
-		# MULTITHREADING VALUE
-		if(str.isdigit(self.mt_entry.get())):
-			mt = int(self.mt_entry.get())
-			if(mt > 128):
-				mt = 128
-				self.mt_entry.delete(0, 'end')
-				self.mt_entry.insert(0, mt)
-			if(mt < 1):
-				mt = 1
-				self.mt_entry.delete(0, 'end')
-				self.mt_entry.insert(0, mt)
-			options.append(("MT",mt)) 
-		else:
-			self.mt_entry.delete(0, 'end')
-			self.showInfo("Attention", "Le champ 'Nombre de sous processus'\ndoit contenir une valeur numérique entre 1 et 128")
-		# PURGE & EMPTY FOLDER VALUE
-		options.append(("PURGE", self.purge_ck_var.get()))
-		options.append(("E", self.e_ck_var.get()))
-		# RETRIE VALUE
-		if(str.isdigit(self.r_entry.get())):
-			r = int(self.r_entry.get())
-			if(r > 24):
-				r = 24
-				self.r_entry.delete(0, 'end')
-				self.r_entry.insert(0, r)
-			if(r < 0):
-				r = 0
-				self.r_entry.delete(0, 'end')
-				self.r_entry.insert(0, r)
-			options.append(("R",r)) 
-		else:
-			self.r_entry.delete(0, 'end')
-			self.showInfo("Attention", "Le champ 'Nombre de tentative'\ndoit contenir une valeur numérique entre 0 et 24.")
-		# WAIT VALUE
-		if(str.isdigit(self.w_entry.get())):
-			w = int(self.w_entry.get())
-			if(w > 360):
-				w = 360
-				self.w_entry.delete(0, 'end')
-				self.w_entry.insert(0, w)
-			if(w < 1):
-				w = 1
-				self.w_entry.delete(0, 'end')
-				self.w_entry.insert(0, w)
-			options.append(("W",w)) 
-		else:
-			self.showInfo("Attention", "Le champ 'Temps d'attente entre chaque tentative'\ndoit contenir une valeur numérique entre 1 et 360.")
-			self.w_entry.delete(0, 'end')
-		# OLD FILE VALUE
-		options.append(("PURGE", self.o_ck_var.get()))
-		if(len(options) == 6):
-			self.current_options = self.getOptionsPreferences()
-			window.destroy()
-
-
-	def saveOptionsPreferences(self, option_list):
-		if(self.user_data != None):
-			for option in option_list:
-				self.user_data["PRESET"][str(self.current_preset)]["OPTIONS"][option[0]] = option[1]
-		self.writeUserData()
 
 
 	def loadData(self, json_file):
@@ -692,9 +548,10 @@ class App():
 			else:
 				self.user_data = data
 		else:
-			self.showInfo("Important !", "No user config file found,\ncreating new one.")
+			self.showInfo("Important !", "Aucun fichier de configuration existant n'a été trouvé.\nUn nouveau fichier sera créé.")
 			f = open("User/user-config.json", "w")
-			new_user_data = {"LAST PRESET":"", "PRESET":{"1":{"OPTIONS":{"MT":0,"PURGE":False,"E":False,"R":0,"W":0,"XO":False},"SRC":{},"DST":{}}}}
+			#new_user_data = {"LAST PRESET":"", "PRESET":{"1":{"SRC":{},"DST":{}}}}
+			new_user_data = {"LAST PRESET":"", "PRESET":{}}
 			json.dump(new_user_data, f, indent=4)
 			f.close()
 			self.user_data = new_user_data
@@ -800,10 +657,13 @@ class App():
 
 
 	def deleteSelectedSRC(self):
+		self.oldSRCList = self.getAllSRC()
 		not_selected = self.getNotSelectedSRC()
 		self.src_listbox.delete(0, 'end')
 		for i in range(len(not_selected)):
 			self.src_listbox.insert(i, not_selected[i])
+		self.updateFileCounter()
+
 
 	def deleteSelectedDST(self):
 		not_selected = self.getNotSelectedDST()
@@ -813,13 +673,17 @@ class App():
 
 
 	def deleteAllSRC(self):
+		self.oldSRCList = self.getAllSRC()
 		self.src_listbox.delete(0, 'end')
+		self.updateFileCounter()
+
 
 	def deleteAllDST(self):
 		self.dst_listbox.delete(0, 'end')
 
 
 	def addFolderSRC(self):
+		self.oldSRCList = self.getAllSRC()
 		path = self.openFolderDialog()
 		if(path != ""):
 			if(self.getAllSRC() != []):
@@ -827,8 +691,11 @@ class App():
 				self.src_listbox.insert(last_index+1, path)
 			else:
 				self.src_listbox.insert(1, path)
+		self.updateFileCounter()
+
 
 	def addFileSRC(self):
+		self.oldSRCList = self.getAllSRC()
 		path = self.openFileDialog()
 		if(path != ""):
 			if(self.getAllSRC() != []):
@@ -836,6 +703,8 @@ class App():
 				self.src_listbox.insert(last_index+1, path)
 			else:
 				self.src_listbox.insert(1, path)
+		self.updateFileCounter()
+
 
 	def addFolderDST(self):
 		path = self.openFolderDialog()
@@ -853,11 +722,30 @@ class App():
 
 	
 	# ALERT BOX
+	def showPermissionDeniedFiles(self):
+		self.sub_win = Toplevel(self.root)
+		self.sub_win.resizable(True, True)
+		self.sub_win.grab_set()
+		frame_font = tkFont.Font(size=13, weight="bold")
+		self.main_sub_frame = LabelFrame(self.sub_win, text="Liste des fichiers n'ayant pas été copiés", font=frame_font, labelanchor="n", borderwidth=0, bg=self.main_theme, fg="white")
+		self.main_sub_frame.pack(side=TOP, expand=True, fill=BOTH, padx=0, pady=0)
+
+		self.sub_yscrollbar = Scrollbar(self.main_sub_frame, bg=self.main_theme, orient=VERTICAL)
+		self.sub_yscrollbar.pack(side=RIGHT, padx=(0,5), pady=(5,5), fill=Y)
+		self.sub_xscrollbar = Scrollbar(self.main_sub_frame, bg=self.main_theme, orient=HORIZONTAL)
+		self.sub_xscrollbar.pack(side=BOTTOM, padx=(5,5), pady=(0,5), fill=X)
+
+		self.sub_text = Text(self.main_sub_frame, fg="white", bg=self.main_theme, width=100, height=15, wrap="none", yscrollcommand=self.sub_yscrollbar.set, xscrollcommand=self.sub_xscrollbar.set)
+		self.sub_text.pack(side=TOP, expand=True, fill=BOTH, padx=5, pady=5)
+		self.sub_yscrollbar.config(command=self.sub_text.yview)
+		self.sub_xscrollbar.config(command=self.sub_text.xview)
+		self.sub_text.insert(0.0, '\n'.join(self.permissionDeniedFiles))
+
 	def showError(self, title, msg):
-		messagebox.showerror(title, msg)
+		messagebox.showerror(title, msg, parent=self.root)
 
 	def showInfo(self, title, msg):
-		messagebox.showinfo(title, msg)
+		messagebox.showinfo(title, msg, master=self.root)
 
 	def showYesNo(self, title, msg):
 		return messagebox.askyesno(title, msg)
