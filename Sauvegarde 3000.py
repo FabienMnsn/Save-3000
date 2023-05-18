@@ -277,9 +277,7 @@ class App():
 		self.mainWatcherThread = threading.Thread(target=self.mainWatcher)
 		self.mainWatcherThread.deamon = True
 		self.mainWatcherThread.start()
-
 		self.lockButtons()
-
 		self.mainPoolThread = threading.Thread(target=self.mainPoolTask)
 		self.mainPoolThread.deamon = True
 		self.mainPoolThread.start()
@@ -572,7 +570,6 @@ class App():
 		f.close()
 
 
-
 	def listDiskID(self):
 		diskID = {}
 		r = []
@@ -608,7 +605,6 @@ class App():
 		#self.getAllSRC()
 		#print("Elements non selectionnés :",self.getNotSelectedSRC())
 		print("INFO !")
-
 
 
 	def getSelectedSRC(self):
