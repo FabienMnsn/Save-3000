@@ -657,7 +657,6 @@ class App():
 		# OLD FILE VALUE
 		options.append(("PURGE", self.o_ck_var.get()))
 		if(len(options) == 6):
-			#self.saveOptionsPreferences(options)
 			self.current_options = self.getOptionsPreferences()
 			window.destroy()
 
