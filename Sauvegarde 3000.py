@@ -74,6 +74,7 @@ class App():
 		# DATA SET & LIST
 		self.srcSet = None
 		self.dstList = None
+		self.permissionDeniedFiles = []
 
 
 
@@ -205,15 +206,23 @@ class App():
 		if(res):
 			self.startSave()
 
+	# BACKUP			
+	#def parseSRC(self, src_list):
+	#	res = set()
+	#	for src in src_list:
+	#		for root, dirs, files in os.walk(src):
+	#			if(len(files) == 0):
+	#				res.add(os.path.normcase(root).replace('\\', '/'))
+	#			for f in files:
+	#				res.add(os.path.normcase(os.path.join(root, f)).replace('\\', '/'))
+	#	return res
 
 	def parseSRC(self, src_list):
 		res = set()
 		for src in src_list:
 			for root, dirs, files in os.walk(src):
-				if(len(files) == 0):
-					res.add(os.path.normcase(root).replace('\\', '/'))
 				for f in files:
-					res.add(os.path.normcase(os.path.join(root, f)).replace('\\', '/'))
+					res.add(os.path.join(root, f).replace('\\', '/'))
 		return res
 
 
@@ -231,7 +240,6 @@ class App():
 
 
 	def hasFileChanged(self, f1, f2):
-		return True
 		if(os.path.exists(f1) and os.path.exists(f2)):
 			return self.calculateHashFile(f1) != self.calculateHashFile(f2)
 
@@ -240,7 +248,6 @@ class App():
 	def startSave(self):
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
-		#self.threadPool = ThreadPoolExecutor(4)
 		self.mainWatcherThread = threading.Thread(target=self.mainWatcher)
 		self.mainWatcherThread.deamon = True
 		self.mainWatcherThread.start()
@@ -253,6 +260,7 @@ class App():
 
 
 	def mainWatcher(self):
+		logging.info(f"[THREAD_ID:%s] Main watcher tread started", threading.get_ident())
 		initSize = len(self.srcSet)
 		self.setMaxProgress(initSize)
 		while True:
@@ -260,91 +268,78 @@ class App():
 				self.setProgress(initSize - len(self.srcSet))
 				break
 			self.setProgress(initSize - len(self.srcSet))
-
-
-	# BACKUP
-	#def mainPoolTask(self):
-	#	starttime = time.time()
-	#	while len(self.srcSet) > 0:
-	#		self.onCloseLock.acquire()
-	#		if(not self.threadPool._shutdown):
-	#			# w = self.threadPool.submit(self.task, srcSet, 20, dstList, PATH_SET_LOCK)
-	#			w = self.threadPool.submit(self.task, 20)
-	#			self.poolThreadList.append(w)
-	#		self.onCloseLock.release()
-	#
-	#	for r in self.poolThreadList:
-	#		r.result()
-	#	logging.info(f"Execution time %ss:", time.time() - starttime)
-	#	self.threadPool.shutdown()
-	#	logging.info(f"Main program is DONE")
-	#	self.showInfo("Sauvegarde", "Sauvegarde terminée !")
-	#	self.resetProgress()
-	#	self.unlockButtons()
+		logging.info(f"[THREAD_ID:%s] Main watcher tread finished", threading.get_ident())
 
 
 	def mainPoolTask(self):
+		logging.info(f"[THREAD_ID:%s] Starting save (main thread pool loop)", threading.get_ident())
 		starttime = time.time()
-		with ThreadPoolExecutor(2) as self.threadPool:
+		with ThreadPoolExecutor(cpu_count()) as self.threadPool:
 			while len(self.srcSet) > 0:
-				#print(vars(self.threadPool))
-				self.onCloseLock.acquire()
-				if(not self.threadPool._shutdown):
-					w = self.threadPool.submit(self.task, 200)
-					self.poolThreadList.append(w)
-				self.onCloseLock.release()
-
-			for r in self.poolThreadList:
+				if(self.threadPool._shutdown):
+					logging.info(f"[THREAD_ID:%s] Aborting main thread pool loop (pool shutdown)", threading.get_ident())
+					break
+				if(self.threadPool._work_queue.qsize() < 5):
+					self.onCloseLock.acquire()
+					if(not self.threadPool._shutdown):
+						w = self.threadPool.submit(self.task, 10)
+						self.poolThreadList.append(w)
+					self.onCloseLock.release()
+		for r in self.poolThreadList:
+			if(not r.cancelled()):
 				r.result()
-		logging.info(f"Execution time %ss:", time.time() - starttime)
+		logging.info(f"[THREAD_ID:%s] Execution time %ss:", threading.get_ident(), time.time() - starttime)
 		self.threadPool.shutdown()
-		logging.info(f"Main program is DONE")
+		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
 		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
 		self.resetProgress()
 		self.unlockButtons()
 
 
 	def task(self, nbElemPerTask):
-		if(True):
-			time.sleep(10)
-		else:
-			if(len(self.srcSet) == 0):
-				return
-			tmpList = []
-			self.pathSetLock.acquire()
-			for i in range(nbElemPerTask):
-				if(len(self.srcSet) > 0):
-					tmpList.append(self.srcSet.pop())
-				else:
-					break
-			self.pathSetLock.release()
-			if(len(tmpList) == 0):
-				return
-			for d in self.dstList:
-				for p in tmpList:
-					parent_path = os.path.dirname(os.path.splitdrive(p)[1])
-					file_name = os.path.basename(os.path.splitdrive(p)[1])
+		if(len(self.srcSet) == 0):
+			return
+		tmpList = []
+		self.PATH_SET_LOCK.acquire()
+		for i in range(nbElemPerTask):
+			if(len(self.srcSet) > 0):
+				tmpList.append(self.srcSet.pop())
+			else:
+				break
+		self.PATH_SET_LOCK.release()
+		if(len(tmpList) == 0):
+			return
+		for d in self.dstList:
+			for p in tmpList:
+				parent_path = os.path.dirname(os.path.splitdrive(p)[1])
+				file_name = os.path.basename(os.path.splitdrive(p)[1])
 
-					if(os.path.exists(d+parent_path+'/'+file_name)):
+				if(os.path.exists(d+parent_path+'/'+file_name)):
+					try:
 						if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
 							try:
 								shutil.copy2(p, d+parent_path)
-								#logging.info("File has changed since last backup, copying new file %s to %s", p, d+parent_path)
+								logging.info(f"[THREAD_ID:%s] File has changed since last backup, copying new file %s to %s", threading.get_ident(), p, d+parent_path)
 							except Exception as e:
-								#logging.error("Exception occurred", exc_info=True)
+								logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
+								self.permissionDeniedFiles.append(p)
 								continue
-					else:
-						try:
-							os.makedirs(d+parent_path, exist_ok=True)
-						except Exception as e:
-							print(e)
-							#logging.error(logging.error("Exception occurred", exc_info=True))
-						try:
-							shutil.copy2(p, d+parent_path)
-							#logging.info("File has changed since last backup, copying new file %s to %s", p, d+parent_path)
-						except Exception as e:
-							#logging.error("Exception occurred", exc_info=True)
-							continue
+					except Exception as e:
+						logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
+						self.permissionDeniedFiles.append(p)
+						continue
+				else:
+					try:
+						os.makedirs(d+parent_path, exist_ok=True)
+					except Exception as e:
+						logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
+					try:
+						shutil.copy2(p, d+parent_path)
+						logging.info(f"[THREAD_ID:%s] File has changed since last backup, copying new file %s to %s", threading.get_ident(), p, d+parent_path)
+					except Exception as e:
+						logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
+						self.permissionDeniedFiles.append(p)
+						continue
 
 
 
@@ -375,8 +370,10 @@ class App():
 
 
 	def on_root_closing(self):
+		print(self.permissionDeniedFiles)
 		res = self.showYesNo("Quitter", "Etes-vous sûr de vouloir quitter le programme avant la fin de la sauvegarde?\n La sauvegarde ne sera pas complète.")
 		if(res):
+			logging.info("User has closed main window")
 			self.onCloseLock.acquire()
 			if(self.threadPool != None):
 				logging.info("Shutting down thread pool")
@@ -864,7 +861,7 @@ class App():
 		messagebox.showinfo(title, msg)
 
 	def showYesNo(self, title, msg):
-		return messagebox.askyesno(title, msg) 
+		return messagebox.askyesno(title, msg)
     	
 
 	def lockButtons(self):
