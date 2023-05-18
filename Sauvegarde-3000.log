@@ -1,5 +1,0 @@
-2023-05-18 18:42:49 INFO [THREAD_ID:8444] Main watcher tread started
-2023-05-18 18:42:49 INFO [THREAD_ID:16216] Starting save (main thread pool loop)
-2023-05-18 18:42:52 INFO [THREAD_ID:8444] Main watcher tread finished
-2023-05-18 18:42:52 INFO [THREAD_ID:16216] Execution time 3.47660493850708s:
-2023-05-18 18:42:52 INFO [THREAD_ID:16216] Save is done

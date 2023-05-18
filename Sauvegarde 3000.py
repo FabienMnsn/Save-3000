@@ -537,19 +537,19 @@ class App():
 
 	def loadUserData(self):
 		user_file = ""
-		for file_name in os.listdir("User/"):
+		for file_name in os.listdir("./"):
 			if(file_name == "user-config.json"):
 				user_file = file_name
 				break
 		if(user_file != ""):
-			code, data = self.loadData("User/"+user_file)
+			code, data = self.loadData("./"+user_file)
 			if(code == -1):
 				self.showError("Error while reading user config file !", data)
 			else:
 				self.user_data = data
 		else:
 			self.showInfo("Important !", "Aucun fichier de configuration existant n'a été trouvé.\nUn nouveau fichier sera créé.")
-			f = open("User/user-config.json", "w")
+			f = open("./user-config.json", "w")
 			#new_user_data = {"LAST PRESET":"", "PRESET":{"1":{"SRC":{},"DST":{}}}}
 			new_user_data = {"LAST PRESET":"", "PRESET":{}}
 			json.dump(new_user_data, f, indent=4)
@@ -563,11 +563,11 @@ class App():
 
 	def writeUserData(self):
 		user_file = ""
-		for file_name in os.listdir("User/"):
+		for file_name in os.listdir("./"):
 			if(file_name == "user-config.json"):
 				user_file = file_name
 				break
-		f = open("User/user-config.json", "w")
+		f = open("./user-config.json", "w")
 		json.dump(self.user_data, f, indent=4)
 		f.close()
 
