@@ -24,6 +24,7 @@ class App():
 		self.root.title("Sauvegarde 3000")
 		self.root.minsize(664, 373)
 		self.root.resizable(True, True)
+		self.root.iconbitmap('./.save-icon.ico')
 		self.main_theme_light = "grey55"
 		self.main_theme = "grey35"
 		self.text_color = "white"
