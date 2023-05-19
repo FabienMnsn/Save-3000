@@ -207,7 +207,12 @@ class App():
 
 	def startThreadedSave(self):
 		if(self.getAllDST() == []):
+			logging.info(f"[THREAD_ID:%s] Aucun dossier de destination spécifié pour la sauvegarde.", threading.get_ident())
 			self.showError("Erreur", "Aucun dossier de destination na été spécifié pour la sauvegarde.")
+			return
+		if(not self.isDSTsafe()):
+			logging.info(f"[THREAD_ID:%s] La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.", threading.get_ident())
+			self.showError("Erreur", "La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.")
 			return
 		res = self.showYesNo("Attention", "Etes-vous sûr de vouloir\nlancer la sauvegarde?")
 		if(res):
@@ -681,7 +686,7 @@ class App():
 	def addFolderSRC(self):
 		self.oldSRCList = self.getAllSRC()
 		path = self.openFolderDialog()
-		if(path != ""):
+		if(path != "" and path not in self.getAllSRC()):
 			if(self.getAllSRC() != []):
 				last_index = self.getAllSRC().index(self.src_listbox.get('end'))
 				self.src_listbox.insert(last_index+1, path)
@@ -693,7 +698,7 @@ class App():
 	def addFileSRC(self):
 		self.oldSRCList = self.getAllSRC()
 		path = self.openFileDialog()
-		if(path != ""):
+		if(path != "" and path not in self.getAllSRC()):
 			if(self.getAllSRC() != []):
 				last_index = self.getAllSRC().index(self.src_listbox.get('end'))
 				self.src_listbox.insert(last_index+1, path)
@@ -704,12 +709,22 @@ class App():
 
 	def addFolderDST(self):
 		path = self.openFolderDialog()
-		if(path != ""):
+		if(path != "" and path not in self.getAllDST()):
 			if(self.getAllDST() != []):
 				last_index = self.getAllDST().index(self.dst_listbox.get('end'))
 				self.dst_listbox.insert(last_index+1, path)
 			else:
 				self.dst_listbox.insert(1, path)
+
+
+	def isDSTsafe(self):
+		src = self.getAllSRC()
+		dst = self.getAllDST()
+		for d in dst:
+			for s in src:
+				if(s in d):
+					return False
+		return True
 
 
 	def systemCall(self, command):
