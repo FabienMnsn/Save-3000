@@ -6,6 +6,8 @@ import subprocess
 import threading
 import hashlib
 import logging
+import humanfriendly
+from datetime import timedelta
 from threading import Lock
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
@@ -321,10 +323,11 @@ class App():
 		for r in self.poolThreadList:
 			if(not r.cancelled()):
 				r.result()
-		logging.info(f"[THREAD_ID:%s] Execution time %ss:", threading.get_ident(), time.time() - starttime)
+		delta = time.time() - starttime
+		logging.info(f"[THREAD_ID:%s] Execution time : %ss", threading.get_ident(), humanfriendly.format_timespan(timedelta(seconds=delta)))
 		self.threadPool.shutdown()
 		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
-		self.showInfo("Sauvegarde", "Sauvegarde terminée !")
+		self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : %s", humanfriendly.format_timespan(timedelta(seconds=delta)))
 		self.SAVING = False
 		if(len(self.permissionDeniedFiles) > 0):
 			self.showPermissionDeniedFiles()
