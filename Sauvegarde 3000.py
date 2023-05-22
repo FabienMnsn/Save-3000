@@ -42,6 +42,7 @@ class App():
 		self.menubar = Menu(self.root, bg=self.main_theme, fg=self.text_color, activebackground="white", activeforeground='black')
 		self.file = Menu(self.menubar, tearoff=0, bg=self.main_theme, fg=self.text_color, font=self.main_font)
 		self.file.add_command(label="Informations", command=self.showPermissionDeniedFiles)
+		self.file.add_command(label="Threads Info", command=self.INFO)
 		self.file.add_separator()
 		self.file.add_command(label="Quitter", command=self.on_root_closing)
 		self.menubar.add_cascade(label="Fichier", menu=self.file)
@@ -329,7 +330,7 @@ class App():
 		logging.info(f"[THREAD_ID:%s] Execution time : %ss", threading.get_ident(), time.time() - starttime)
 		self.threadPool.shutdown()
 		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
-		self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : %s", humanfriendly.format_timespan(timedelta(seconds=delta)))
+		self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=delta)))
 		self.SAVING = False
 		if(len(self.permissionDeniedFiles) > 0):
 			self.showPermissionDeniedFiles()
@@ -608,14 +609,14 @@ class App():
 
 
 	def INFO(self):
-		#print(self.optionsToString())
-		#print(self.getDST())
-		#print(self.user_data)
-		#print(self.src_listbox.get(0, 'end'))
-		#self.getSelectedSRC()
-		#self.getAllSRC()
-		#print("Elements non selectionnés :",self.getNotSelectedSRC())
-		print("INFO !")
+		if(self.mainWatcherThread != None):
+			print("Main Watcher Thread : %s is alive : %s." % (self.mainWatcherThread._ident, self.mainWatcherThread.is_alive()))
+		else:
+			print(f"Main Watcher Thread is dead.")
+		if(self.mainPoolThread != None):
+			print("Main Pool Thread : %s is alive : %s." % (self.mainPoolThread._ident, self.mainPoolThread.is_alive()))
+		else:
+			print(f"Main Pool Thread is dead.")
 
 
 	def getSelectedSRC(self):
@@ -777,8 +778,8 @@ class App():
 		self.delete_selected_DST_button['state'] = DISABLED
 		self.select_folder_DST_button['state'] = DISABLED
 		self.start_save['state'] = DISABLED
-		self.file.entryconfig(0, state=DISABLED)
-		self.file.entryconfig(2, state=DISABLED)
+		#self.file.entryconfig(0, state=DISABLED)
+		#self.file.entryconfig(2, state=DISABLED)
 		for element in list(self.user_data["PRESET"].keys()):
 			self.presetbar.entryconfig(self.presetbar.index(element), state=DISABLED)
 
@@ -791,8 +792,8 @@ class App():
 		self.delete_selected_DST_button['state'] = NORMAL
 		self.select_folder_DST_button['state'] = NORMAL
 		self.start_save['state'] = NORMAL
-		self.file.entryconfig(0, state=NORMAL)
-		self.file.entryconfig(2, state=NORMAL)
+		#self.file.entryconfig(0, state=NORMAL)
+		#self.file.entryconfig(2, state=NORMAL)
 		for element in list(self.user_data["PRESET"].keys()):
 			self.presetbar.entryconfig(self.presetbar.index(element), state=NORMAL)
 
