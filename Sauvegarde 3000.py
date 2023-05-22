@@ -314,7 +314,7 @@ class App():
 				if(self.threadPool._shutdown):
 					logging.info(f"[THREAD_ID:%s] Aborting main thread pool loop (pool shutdown)", threading.get_ident())
 					break
-				if(self.threadPool._work_queue.qsize() < 5):
+				if(self.threadPool._work_queue.qsize() < cpu_count()):
 					self.onCloseLock.acquire()
 					if(not self.threadPool._shutdown):
 						w = self.threadPool.submit(self.task, 4)
@@ -325,6 +325,8 @@ class App():
 				r.result()
 		delta = time.time() - starttime
 		logging.info(f"[THREAD_ID:%s] Execution time : %ss", threading.get_ident(), humanfriendly.format_timespan(timedelta(seconds=delta)))
+		# BACKUP (just in case)
+		logging.info(f"[THREAD_ID:%s] Execution time : %ss", threading.get_ident(), time.time() - starttime)
 		self.threadPool.shutdown()
 		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
 		self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : %s", humanfriendly.format_timespan(timedelta(seconds=delta)))
