@@ -318,7 +318,7 @@ class App():
 				if(self.threadPool._work_queue.qsize() < cpu_count()):
 					self.onCloseLock.acquire()
 					if(not self.threadPool._shutdown):
-						w = self.threadPool.submit(self.task, 4)
+						w = self.threadPool.submit(self.task, 10)
 						self.poolThreadList.append(w)
 					self.onCloseLock.release()
 		for r in self.poolThreadList:
@@ -330,6 +330,7 @@ class App():
 		logging.info(f"[THREAD_ID:%s] Execution time : %ss", threading.get_ident(), time.time() - starttime)
 		self.threadPool.shutdown()
 		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
+		#if(self.mainPoolThread != None):
 		self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=delta)))
 		self.SAVING = False
 		if(len(self.permissionDeniedFiles) > 0):
