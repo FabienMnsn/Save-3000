@@ -800,3 +800,11 @@ class App():
 if __name__ == '__main__':
 	app = App()
 	app.root.mainloop()
+
+
+# TODO LIST
+
+#	-	Terminer les threads à la fin d'une sauvegarde -> ne fonctionne pas à corriger
+#	-	Ajouter un compteur de temps passé au lancement de la sauvegarde (en bas à gauche du bouton "Lancer la sauvegarde")
+#	-	Problème les scrollbars ne fonctionnent pas correctement.
+#	-	Changer les messages box par une classe custom
