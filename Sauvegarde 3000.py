@@ -190,10 +190,15 @@ class App():
 		self.start_save['command'] = self.startThreadedSave
 		self.start_save.pack(side=TOP, expand=True, fill=NONE, padx=(10,10), pady=(5,10))
 		
+		#self.root.bind("<<event1>>", self.handler1())
 		self.loadUserData()
 		self.updatePresetMenu()
 		self.loadLastPreset()
 		self.updateFileCounter()
+
+
+	#def handler1(self):
+	#	self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=20)))
 
 
 	def setMaxProgress(self, value):
@@ -331,7 +336,8 @@ class App():
 		self.threadPool.shutdown()
 		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
 		#if(self.mainPoolThread != None):
-		self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=delta)))
+		#self.root.event_generate("<<event1>>", when="tail", state=delta)
+		#self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=delta)))
 		self.SAVING = False
 		if(len(self.permissionDeniedFiles) > 0):
 			self.showPermissionDeniedFiles()
