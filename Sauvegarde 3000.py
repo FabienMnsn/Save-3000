@@ -813,6 +813,9 @@ if __name__ == '__main__':
 
 # TODO LIST
 
+
+# 	-	Re faire le programme en lançant X threads custom, chaque thread est actif du début à la fin de la copie et tourner à l'infini tant que le data set n'est pas vide (dans l'idée c'est pour ce passer du thread pool qui ne fonctionne pas exactement comme je le souhaite)
+
 #	-	Terminer les threads à la fin d'une sauvegarde -> ne fonctionne pas à corriger
 #	-	Ajouter un compteur de temps passé au lancement de la sauvegarde (en bas à gauche du bouton "Lancer la sauvegarde")
 #	-	Problème les scrollbars ne fonctionnent pas correctement.
