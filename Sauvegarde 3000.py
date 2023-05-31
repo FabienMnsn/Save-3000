@@ -506,6 +506,7 @@ class App():
 		self.src_listbox.delete(0, 'end')
 		self.dst_listbox.delete(0, 'end')
 
+
 	def loadSRC(self):
 		if(self.user_data != None and self.user_data["PRESET"] != {} and self.current_preset in list(self.user_data["PRESET"].keys()) and self.user_data["PRESET"][self.current_preset]["SRC"] != []):
 			src_list = self.user_data["PRESET"][self.current_preset]["SRC"]
