@@ -21,14 +21,14 @@ def main():
 	t1 = WatcherThread(thread_pool_event, c_set, print_lock)
 	t1.start()
 
-	t2 = CustomThreadPool(thread_pool_event, c_set, 10, print_lock)
+	t2 = CustomThreadPool(thread_pool_event, c_set, 62, print_lock)
 	t2.start()
 	#sleep(5)
 	#ev.set()
 
-	#sleep(5)
-	#print("SENDING EVENT")
-	#thread_pool_event.set()
+	sleep(5)
+	print("SENDING EVENT")
+	thread_pool_event.set()
 	#c = {1}
 	#print(c.pop())
 	#

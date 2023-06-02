@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 class CustomThread(Thread):
-	def __init__(self, wk_ev, wk_lk, dataset, b_size, print_lock):
+	def __init__(self, wk_ev, wk_lk, dataset, b_size, print_lock, cpt_sh):
 		Thread.__init__(self)
 		self.worker_event = wk_ev
 		self.worker_lock = wk_lk
@@ -16,11 +16,12 @@ class CustomThread(Thread):
 		self.batch_size = b_size
 		self.working_list = []
 		self.print_lock = print_lock
+		self.cpt_shared = cpt_sh
 
 
 	def run(self):
 		while True:
-			#sleep(1)
+			#sleep(0.3)
 			#self.print_lock.acquire()
 			#print("[", get_ident(), "] : Working list :", self.working_list)
 			#self.print_lock.release()
@@ -32,15 +33,19 @@ class CustomThread(Thread):
 				# do copy file
 				for element in self.working_list:
 					if(self.worker_event.is_set()):
-						self.print_lock.acquire()
-						print("[", get_ident(), "] : Worker Received Signal")
-						self.print_lock.release()
+						#self.print_lock.acquire()
+						#print("[", get_ident(), "] : Worker Received Signal")
+						#self.print_lock.release()
 						self.signal_handler()
 					#sleep(0.3)
-					#self.print_lock.acquire()
+					self.print_lock.acquire()
 					self.working_list.remove(element)
+					self.cpt_shared[0] += 1
 					#print("[", get_ident(), "] : Copying file", element)
-					#self.print_lock.release()
+					self.print_lock.release()
+				self.print_lock.acquire()
+				print("[", get_ident(), "] : List", self.working_list)
+				self.print_lock.release()
 			else:
 				if(len(self.dataset) > 0):
 					#self.print_lock.acquire()
@@ -75,6 +80,9 @@ class CustomThread(Thread):
 					self.print_lock.release()
 					break
 		self.print_lock.acquire()
+		print("[", get_ident(), "] : Working list :", self.working_list)
+		self.print_lock.release()
+		self.print_lock.acquire()
 		print("[", get_ident(), "] : ---------------- Worker's Job Completed")
 		self.print_lock.release()
 			
@@ -104,6 +112,7 @@ class CustomThreadPool(Thread):
 		self.workerList = []
 		self.batch_size = b_size
 		self.print_lock = print_lock
+		self.cpt = [0]
 		#signal.signal(signal.SIGSTOP, signal_handler)
 
 
@@ -111,16 +120,21 @@ class CustomThreadPool(Thread):
 		print("Start Worker Pool")
 		for i in range(cpu_count()):
 			# CustomThread(self, wk_ev, wk_lk, dataset, b_size)
-			w = CustomThread(self.worker_event, self.worker_lock, self.dataset, self.batch_size, self.print_lock)
+			w = CustomThread(self.worker_event, self.worker_lock, self.dataset, self.batch_size, self.print_lock, self.cpt)
 			w.start()
 			self.workerList.append(w)
 
 		while True:
-			print("--------------------------------> THREAD POOL EVENT :", self.threadpool_event.is_set())
+			#print("--------------------------------> THREAD POOL EVENT :", self.threadpool_event.is_set())
 			if(self.threadpool_event.is_set()):
 				self.signal_handler()
 				break
-			sleep(0.3)
+			if(len(self.dataset) == 0):
+				for w in self.workerList:
+					w.join()
+				break
+			#sleep(0.3)
+		print("FILE COPIED :", self.cpt[0])
 	
 
 
