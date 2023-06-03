@@ -771,10 +771,10 @@ class App():
 		messagebox.showerror(title, msg, parent=self.root)
 
 	def showInfo(self, title, msg):
-		messagebox.showinfo(title, msg, master=self.root)
+		messagebox.showinfo(title, msg, parent=self.root)
 
 	def showYesNo(self, title, msg):
-		return messagebox.askyesno(title, msg)
+		return messagebox.askyesno(title, msg, parent=self.root)
     	
 
 	def lockButtons(self):

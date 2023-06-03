@@ -1,3 +1,4 @@
+from tkinter import *
 from threading import Thread
 from threading import get_ident
 from threading import Event
@@ -5,6 +6,7 @@ from threading import Lock
 from time import sleep
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
+
 
 
 class CustomThread(Thread):
@@ -205,3 +207,15 @@ class WatcherThread(Thread):
 		print("[", get_ident(), "] : Signal Received Watcher Quitting")
 		self.print_lock.release()
 		exit(0)
+
+
+
+
+class CustomError(Toplevel):
+	def __init__(self, msg):
+		Toplevel.__init__(self)
+		self.error_label = Label(self, text=msg)
+		self.error_label.pack(side=TOP, expand=True, fill=X, padx=5, pady=5)
+		self.error_button = Button(self, command=self.destroy, text="OK")
+		self.error_button.pack(side=TOP, expand=False, padx=5, pady=5)
+		self.attributes('-topmost', 'true')
