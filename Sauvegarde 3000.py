@@ -19,6 +19,8 @@ from tkinter.ttk import Progressbar
 from tkinter import filedialog
 from tkinter import font as tkFont
 
+from CustomMessages import CustomError, CustomInfo, CustomYesNo, CustomInfoList
+
 
 class App():
 	def __init__(self):
@@ -42,7 +44,7 @@ class App():
 		# MENU BAR
 		self.menubar = Menu(self.root, bg=self.main_theme, fg=self.text_color, activebackground="white", activeforeground='black')
 		self.file = Menu(self.menubar, tearoff=0, bg=self.main_theme, fg=self.text_color, font=self.main_font)
-		self.file.add_command(label="Informations", command=self.showPermissionDeniedFiles)
+		self.file.add_command(label="Informations", command=lambda: self.showPermissionDeniedFiles("Liste des fichiers n'ayant pas été copiés (erreur de permission)", self.permissionDeniedFiles))
 		self.file.add_command(label="Threads Info", command=self.INFO)
 		self.file.add_separator()
 		self.file.add_command(label="Quitter", command=self.on_root_closing)
@@ -341,7 +343,7 @@ class App():
 		#self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=delta)))
 		self.SAVING = False
 		if(len(self.permissionDeniedFiles) > 0):
-			self.showPermissionDeniedFiles()
+			self.showPermissionDeniedFiles("Liste des fichiers n'ayant pas été copiés (erreur de permission)", self.permissionDeniedFiles)
 		self.updateFileCounter()
 		self.resetProgress()
 		self.unlockButtons()
@@ -749,7 +751,11 @@ class App():
 
 	
 	# ALERT BOX
-	def showPermissionDeniedFiles(self):
+	def showPermissionDeniedFiles(self, msg, file_list):
+		CustomInfoList(msg, self.root, file_list).show()
+		return
+
+
 		self.sub_win = Toplevel(self.root)
 		self.sub_win.resizable(True, True)
 		self.sub_win.grab_set()
@@ -768,14 +774,15 @@ class App():
 		self.sub_xscrollbar.config(command=self.sub_text.xview)
 		self.sub_text.insert(0.0, '\n'.join(self.permissionDeniedFiles))
 
-	def showError(self, title, msg):
-		messagebox.showerror(title, msg, parent=self.root)
+	def showError(self, msg):
+		CustomError(msg, self.root).show()
 
 	def showInfo(self, title, msg):
-		messagebox.showinfo(title, msg, master=self.root)
+		CustomInfo(msg, self.root).show()
 
 	def showYesNo(self, title, msg):
-		return messagebox.askyesno(title, msg)
+		res = CustomYesNo(msg, self.root).show()
+		return res
     	
 
 	def lockButtons(self):
