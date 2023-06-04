@@ -92,9 +92,9 @@ class CustomInfo(Toplevel):
 
 
 class CustomYesNo(Toplevel):
-	def __init__(self, msg, root):
+	def __init__(self, title, msg, root):
 		Toplevel.__init__(self, root)
-		self.title("Validation")
+		self.title(title)
 		self.main_theme_light = "grey85"
 		self.main_theme = "grey35"
 		self.parent = root

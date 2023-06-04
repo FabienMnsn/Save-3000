@@ -1,17 +1,11 @@
-import signal
 import time
 import json
 import os
 import shutil
 import subprocess
-import threading
-import hashlib
 import logging
 import humanfriendly
 from datetime import timedelta
-from threading import Lock
-from multiprocessing import cpu_count
-from concurrent.futures import ThreadPoolExecutor
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
@@ -19,8 +13,13 @@ from tkinter.ttk import Progressbar
 from tkinter import filedialog
 from tkinter import font as tkFont
 
+from threading import Thread, Lock, Event, get_ident
+from multiprocessing import cpu_count
+from concurrent.futures import ThreadPoolExecutor	# TO DELETE WHEN NEW VERSION IS INTEGRATED
+
 # Importing my own modules ;)
 from CustomMessages import CustomError, CustomInfo, CustomYesNo, CustomInfoList
+from CustomThreading import CustomThread, CustomThreadPool, CustomWatcherThread
 
 # This code was written by FMA ;)
 
@@ -60,9 +59,14 @@ class App():
 		self.current_preset = None
 		# LOGGING CONFIGURATION
 		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
+		self.logger = logging.getLogger()
 		# BOOLEAN
 		self.saveStarted = False
 		# THREADS
+		self.t1 = None
+		self.t2 = None
+		self.threadPoolEvent = Event()
+		self.cpt = IntVar(value=0)
 		self.mainWatcherThread = None
 		self.mainPoolThread = None
 		self.poolThreadList = []
@@ -192,17 +196,20 @@ class App():
 	def setProgress(self, value):
 		self.progress['value'] = value
 
+	def setFileCounter(self, str_value):
+		self.fileCounter['text'] = str_value
+
 
 	def startThreadedSave(self):
 		if(self.getAllDST() == []):
-			logging.error(f"[THREAD_ID:%s] Aucun dossier de destination spécifié pour la sauvegarde.", threading.get_ident())
-			self.showError("Erreur", "Aucun dossier de destination na été spécifié pour la sauvegarde.")
+			self.logger.error(f"[THREAD_ID:%s] Aucun dossier de destination spécifié pour la sauvegarde.", get_ident())
+			self.showError("Aucun dossier de destination n'a été spécifié pour la sauvegarde.")
 			return
 		if(not self.isDSTsafe()):
-			logging.info(f"[THREAD_ID:%s] La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.", threading.get_ident())
-			self.showError("Erreur", "La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.")
+			self.logger.info(f"[THREAD_ID:%s] La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.", get_ident())
+			self.showError("La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.")
 			return
-		res = self.showYesNo("Attention", "Etes-vous sûr de vouloir\nlancer la sauvegarde?")
+		res = self.showYesNo("Validation", "Etes-vous sûr de vouloir\nlancer la sauvegarde?")
 		if(res):
 			self.startSave()
 
@@ -228,7 +235,7 @@ class App():
 						tt += 1
 			return tt
 		except Exception as e:
-				logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
+				self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
 
 
 	def parseSRC(self, src_list):
@@ -242,132 +249,21 @@ class App():
 						res.add(os.path.join(root, f).replace('\\', '/'))
 			return res
 		except Exception as e:
-				logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
-
-
-	def calculateHashFile(self, f1):
-		BUF_SIZE = 65536
-		sha1 = hashlib.sha1()
-		with open(f1, 'rb') as f:
-			while True:
-				data = f.read(BUF_SIZE)
-				if not data:
-					break
-				sha1.update(data)
-		return sha1.hexdigest()
-
-
-	def hasFileChanged(self, f1, f2):
-		if(os.path.exists(f1) and os.path.exists(f2)):
-			return self.calculateHashFile(f1) != self.calculateHashFile(f2)
+				self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
 
 
 	def startSave(self):
 		self.SAVING = True
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
-		self.mainWatcherThread = threading.Thread(target=self.mainWatcher)
-		self.mainWatcherThread.deamon = True
-		self.mainWatcherThread.start()
+
+		# NEW VERSION
+		self.t1 = CustomWatcherThread(self, self.threadPoolEvent, self.srcSet, self.logger)
+		self.t1.start()
+
+		self.t2 = CustomThreadPool(self, self.threadPoolEvent, self.srcSet, self.dstList, 30, self.logger, self.permissionDeniedFiles, self.cpt)
+		self.t2.start()
 		self.lockButtons()
-		self.mainPoolThread = threading.Thread(target=self.mainPoolTask)
-		self.mainPoolThread.deamon = True
-		self.mainPoolThread.start()
-
-
-	def mainWatcher(self):
-		logging.info(f"[THREAD_ID:%s] Main watcher tread started", threading.get_ident())
-		initSize = len(self.srcSet)
-		self.setMaxProgress(initSize)
-		self.fileCounter['text'] = "0 / "+str(initSize)+" file(s)"
-		while True:
-			if(len(self.srcSet) == 0):
-				self.setProgress(initSize - len(self.srcSet))
-				self.fileCounter['text'] = str(initSize - len(self.srcSet))+" / "+str(initSize)+" file(s)"
-				break
-			self.setProgress(initSize - len(self.srcSet))
-			self.fileCounter['text'] = str(initSize - len(self.srcSet))+" / "+str(initSize)+" file(s)"
-		logging.info(f"[THREAD_ID:%s] Main watcher tread finished", threading.get_ident())
-
-
-	def mainPoolTask(self):
-		logging.info(f"[THREAD_ID:%s] Starting save (main thread pool loop)", threading.get_ident())
-		starttime = time.time()
-		with ThreadPoolExecutor(cpu_count()) as self.threadPool:
-			while len(self.srcSet) > 0:
-				if(self.threadPool._shutdown):
-					logging.info(f"[THREAD_ID:%s] Aborting main thread pool loop (pool shutdown)", threading.get_ident())
-					break
-				if(self.threadPool._work_queue.qsize() < cpu_count()):
-					self.onCloseLock.acquire()
-					if(not self.threadPool._shutdown):
-						w = self.threadPool.submit(self.task, 10)
-						self.poolThreadList.append(w)
-					self.onCloseLock.release()
-		for r in self.poolThreadList:
-			if(not r.cancelled()):
-				r.result()
-		delta = time.time() - starttime
-		logging.info(f"[THREAD_ID:%s] Execution time : %ss", threading.get_ident(), humanfriendly.format_timespan(timedelta(seconds=delta)))
-		# BACKUP (just in case)
-		logging.info(f"[THREAD_ID:%s] Execution time : %ss", threading.get_ident(), time.time() - starttime)
-		self.threadPool.shutdown()
-		logging.info(f"[THREAD_ID:%s] Save is done", threading.get_ident())
-		#if(self.mainPoolThread != None):
-		#self.root.event_generate("<<event1>>", when="tail", state=delta)
-		#self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=delta)))
-		self.SAVING = False
-		if(len(self.permissionDeniedFiles) > 0):
-			self.showPermissionDeniedFiles("Liste des fichiers n'ayant pas été copiés (erreur de permission)", self.permissionDeniedFiles)
-		self.updateFileCounter()
-		self.resetProgress()
-		self.unlockButtons()
-
-
-	def task(self, nbElemPerTask):
-		if(len(self.srcSet) == 0):
-			return
-		tmpList = []
-		self.PATH_SET_LOCK.acquire()
-		for i in range(nbElemPerTask):
-			if(len(self.srcSet) > 0):
-				tmpList.append(self.srcSet.pop())
-			else:
-				break
-		self.PATH_SET_LOCK.release()
-		if(len(tmpList) == 0):
-			return
-		for d in self.dstList:
-			for p in tmpList:
-				parent_path = os.path.dirname(os.path.splitdrive(p)[1])
-				file_name = os.path.basename(os.path.splitdrive(p)[1])
-
-				if(os.path.exists(d+parent_path+'/'+file_name)):
-					try:
-						if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
-							try:
-								shutil.copy2(p, d+parent_path)
-								logging.info(f"[THREAD_ID:%s] File has changed since last backup, copying new file %s to %s", threading.get_ident(), p, d+parent_path)
-							except Exception as e:
-								logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
-								self.permissionDeniedFiles.append(p)
-								continue
-					except Exception as e:
-						logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
-						self.permissionDeniedFiles.append(p)
-						continue
-				else:
-					try:
-						os.makedirs(d+parent_path, exist_ok=True)
-					except Exception as e:
-						logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
-					try:
-						shutil.copy2(p, d+parent_path)
-						logging.info(f"[THREAD_ID:%s] File has changed since last backup, copying new file %s to %s", threading.get_ident(), p, d+parent_path)
-					except Exception as e:
-						logging.error(f"[THREAD_ID:%s] Exception occurred", threading.get_ident(), exc_info=True)
-						self.permissionDeniedFiles.append(p)
-						continue
 
 
 	def loadLastPreset(self):
@@ -383,19 +279,15 @@ class App():
 
 
 	def on_root_closing(self):
-		if(self.SAVING):
+		if((self.t1 != None and self.t1.is_alive()) or (self.t2 != None and self.t2.is_alive())):
 			res = self.showYesNo("Quitter", "Etes-vous sûr de vouloir quitter le programme avant la fin de la sauvegarde?\n La sauvegarde ne sera pas complète.")
 			if(res):
-				logging.info("User has closed main window")
-				self.onCloseLock.acquire()
-				if(self.threadPool != None):
-					logging.info("Shutting down thread pool")
-					self.threadPool.shutdown(wait=False, cancel_futures=True)
-					logging.info("Canceling all running tasks in thread pool")
-					for t in self.poolThreadList:
-						if(t.running()):
-							t.cancel()
-				self.onCloseLock.release()
+				self.logger.info("User has closed main window")
+				self.threadPoolEvent.set()
+				self.root.destroy()
+		else:
+			self.logger.info("User has closed main window")
+			self.root.destroy()
 		
 		if(self.current_preset != None and self.user_data != None):
 			if(self.user_data["PRESET"] != {}):
@@ -403,7 +295,7 @@ class App():
 			else:
 				self.user_data["LAST PRESET"] = ""
 			self.writeUserData()
-		self.root.destroy()
+		#self.root.destroy()
 
 
 	def openFolderDialog(self):
@@ -503,7 +395,7 @@ class App():
 					self.dst_listbox.insert(index, path)
 					index += 1
 				else:
-					self.showError("Erreur", "Le lecteur de destination est absent ou la lettre de lecteur et son numéro de série ne correspondent pas pour le chemin enregistré dans \"Dossier(s) de sauvegarde\" :\n"+path)
+					self.showError("Le lecteur de destination est absent ou la lettre de lecteur et son numéro de série ne correspondent pas pour le chemin enregistré dans \"Dossier(s) de sauvegarde\" :\n"+path)
 
 			return
 			for i in range(len(dst_list)):
@@ -527,7 +419,7 @@ class App():
 			file.close()
 			return 0, data
 		except Exception as e:
-			self.showError("Error", e)
+			self.showError(e)
 			return -1, e
 
 
@@ -540,11 +432,11 @@ class App():
 		if(user_file != ""):
 			code, data = self.loadData("./"+user_file)
 			if(code == -1):
-				self.showError("Error while reading user config file !", data)
+				self.showError("Error while reading user config file !\n" + data)
 			else:
 				self.user_data = data
 		else:
-			self.showInfo("Important !", "Aucun fichier de configuration existant n'a été trouvé.\nUn nouveau fichier sera créé.")
+			self.showInfo("Aucun fichier de configuration existant n'a été trouvé.\nUn nouveau fichier sera créé.")
 			f = open("./user-config.json", "w")
 			#new_user_data = {"LAST PRESET":"", "PRESET":{"1":{"SRC":{},"DST":{}}}}
 			new_user_data = {"LAST PRESET":"", "PRESET":{}}
@@ -595,14 +487,22 @@ class App():
 
 
 	def INFO(self):
-		if(self.mainWatcherThread != None):
-			print("Main Watcher Thread : %s is alive : %s." % (self.mainWatcherThread._ident, self.mainWatcherThread.is_alive()))
+		if(self.t1 != None):
+			print(self.t1)
+			#print("Main Watcher Thread : %s is alive : %s." % (self.mainWatcherThread._ident, self.mainWatcherThread.is_alive()))
 		else:
-			print(f"Main Watcher Thread is dead.")
-		if(self.mainPoolThread != None):
-			print("Main Pool Thread : %s is alive : %s." % (self.mainPoolThread._ident, self.mainPoolThread.is_alive()))
+			print("t1 dead")
+		#	print(f"Main Watcher Thread is dead.")
+		if(self.t2 != None):
+			print(self.t2)
+			#print("Main Pool Thread : %s is alive : %s." % (self.mainPoolThread._ident, self.mainPoolThread.is_alive()))
 		else:
-			print(f"Main Pool Thread is dead.")
+			print("t2 dead")
+		#	print(f"Main Pool Thread is dead.")
+
+
+	def getCpt(self):
+		return self.cpt.get()
 
 
 	def getSelectedSRC(self):
@@ -736,7 +636,7 @@ class App():
 		CustomInfo(msg, self.root).show()
 
 	def showYesNo(self, title, msg):
-		res = CustomYesNo(msg, self.root).show()
+		res = CustomYesNo(title, msg, self.root).show()
 		return res
     	
 
