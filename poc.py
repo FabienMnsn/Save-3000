@@ -19,19 +19,17 @@ def main():
 	print_lock = Lock()
 
 	t1 = WatcherThread(thread_pool_event, c_set, print_lock)
-	#t1.start()
+	t1.start()
 
 	t2 = CustomThreadPool(thread_pool_event, c_set, 62, print_lock)
-	#t2.start()
+	t2.start()
 	#sleep(5)
 	#ev.set()
 
 	#sleep(1)
 	#print("SENDING EVENT")
 	#thread_pool_event.set()
-	w = Tk()
-	CustomError("Ceci est un message d'erreur !")
-	w.mainloop()
+
 	#c = {1}
 	#print(c.pop())
 	#

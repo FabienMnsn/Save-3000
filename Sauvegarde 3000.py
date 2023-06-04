@@ -19,13 +19,14 @@ from tkinter.ttk import Progressbar
 from tkinter import filedialog
 from tkinter import font as tkFont
 
+# Importing my own modules ;)
 from CustomMessages import CustomError, CustomInfo, CustomYesNo, CustomInfoList
 
+# This code was written by FMA ;)
 
 class App():
 	def __init__(self):
 		self.root = Tk()
-		# theme and font color
 		self.root.title("Sauvegarde 3000")
 		self.root.minsize(664, 373)
 		self.root.resizable(True, True)
@@ -40,7 +41,6 @@ class App():
 		self.main_font = tkFont.Font(size=11, weight="bold")
 		self.root['bg'] = self.main_theme
 		self.root.protocol("WM_DELETE_WINDOW", self.on_root_closing)
-		# --------------------------------------------------------------------------------------------------
 		# MENU BAR
 		self.menubar = Menu(self.root, bg=self.main_theme, fg=self.text_color, activebackground="white", activeforeground='black')
 		self.file = Menu(self.menubar, tearoff=0, bg=self.main_theme, fg=self.text_color, font=self.main_font)
@@ -50,24 +50,18 @@ class App():
 		self.file.add_command(label="Quitter", command=self.on_root_closing)
 		self.menubar.add_cascade(label="Fichier", menu=self.file)
 		self.root.config(menu=self.menubar)
-
 		# PRESET BAR
 		self.presetbar = Menu(self.menubar, tearoff=0, bg=self.main_theme, fg=self.text_color, font=self.main_font)
 		self.menubar.add_cascade(label="Préréglages", menu=self.presetbar)
-		
 		# MAIN FRAME
 		self.main_frame = None
-
 		# USER DATA
 		self.user_data = None
 		self.current_preset = None
-
 		# LOGGING CONFIGURATION
 		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
-		
 		# BOOLEAN
 		self.saveStarted = False
-
 		# THREADS
 		self.mainWatcherThread = None
 		self.mainPoolThread = None
@@ -76,47 +70,34 @@ class App():
 		self.onCloseLock = Lock()
 		self.PATH_SET_LOCK = Lock()
 		self.SAVING = False
-
 		# DATA SET & LIST
 		self.srcSet = None
 		self.dstList = None
 		self.permissionDeniedFiles = []
 		self.oldSRCList = []
-
-
 		# PRESET FRAME
 		self.preset_frame = LabelFrame(self.main_frame, text="Préréglages", font=self.main_font, labelanchor="n", borderwidth=1, bg=self.main_theme, fg=self.text_color)
 		self.preset_frame.pack(side=TOP, expand=False, fill=BOTH, padx=5, pady=5)
-		
 		self.preset_l = Label(self.preset_frame, text="Préréglage actuel :", font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, justify=LEFT)
 		self.preset_l.pack(side=LEFT, fill=X, padx=(5,0), pady=(5,10))
-
 		self.current_preset_label = Label(self.preset_frame, text=self.current_preset, font=self.main_font, height=1, bg=self.main_theme, fg=self.text_color, justify=LEFT)
 		self.current_preset_label.pack(side=LEFT, fill=X, anchor=W, padx=(0,5), pady=(5,13))
-
 		self.save_current_preset_button = Button(self.preset_frame, text="Sauvegarder préréglage", relief="raised", bg=self.main_button_color, fg="white")
 		self.save_current_preset_button['command'] = self.openNameInputWindow
 		self.save_current_preset_button.pack(side=RIGHT, padx=5, pady=(5,13))
-
 		self.delete_current_preset_button = Button(self.preset_frame, text="Supprimer le préréglage courant", relief="raised", bg=self.critical_button_color, fg="white")
 		self.delete_current_preset_button['command'] = self.deleteCurrentPreset
 		self.delete_current_preset_button.pack(side=RIGHT, padx=5, pady=(5,13))
-
-
 		# MAIN PANED FRAME
 		self.folders_panedWindow = PanedWindow(self.main_frame, bg=self.main_theme, showhandle=True, handlesize=10, handlepad=100)
 		self.folders_panedWindow.pack(side=TOP, expand=True, fill=BOTH, padx=(5,5), pady=0)
-
-
 		# SRC FRAME
 		self.src_frame = LabelFrame(self.folders_panedWindow, text="Dossiers à sauvegarder", font=self.main_font, labelanchor="n", borderwidth=1, bg=self.main_theme, fg=self.text_color)
 		self.src_frame.pack(side=LEFT, expand=True, fill=BOTH)
 		self.folders_panedWindow.add(self.src_frame)
-
 		# SRC LISTBOX+SCROLLBARS FRAME
 		self.src_listboxFrame = Frame(self.src_frame, bg=self.main_theme)
 		self.src_listboxFrame.pack(side=TOP, expand=True, fill=BOTH, padx=0, pady=0)
-
 		self.src_yscrollbar = Scrollbar(self.src_listboxFrame, bg=self.main_theme, orient=VERTICAL)
 		self.src_yscrollbar.pack(side=RIGHT, padx=(0,5), pady=(5,5), fill=Y)
 
@@ -193,15 +174,10 @@ class App():
 		self.start_save['command'] = self.startThreadedSave
 		self.start_save.pack(side=TOP, expand=True, fill=NONE, padx=(10,10), pady=(5,10))
 		
-		#self.root.bind("<<event1>>", self.handler1())
 		self.loadUserData()
 		self.updatePresetMenu()
 		self.loadLastPreset()
 		self.updateFileCounter()
-
-
-	#def handler1(self):
-	#	self.showInfo("Sauvegarde", f"Sauvegarde terminée !\nTemps d'exécution : "+humanfriendly.format_timespan(timedelta(seconds=20)))
 
 
 	def setMaxProgress(self, value):
@@ -219,7 +195,7 @@ class App():
 
 	def startThreadedSave(self):
 		if(self.getAllDST() == []):
-			logging.info(f"[THREAD_ID:%s] Aucun dossier de destination spécifié pour la sauvegarde.", threading.get_ident())
+			logging.error(f"[THREAD_ID:%s] Aucun dossier de destination spécifié pour la sauvegarde.", threading.get_ident())
 			self.showError("Erreur", "Aucun dossier de destination na été spécifié pour la sauvegarde.")
 			return
 		if(not self.isDSTsafe()):
@@ -284,7 +260,6 @@ class App():
 	def hasFileChanged(self, f1, f2):
 		if(os.path.exists(f1) and os.path.exists(f2)):
 			return self.calculateHashFile(f1) != self.calculateHashFile(f2)
-
 
 
 	def startSave(self):
@@ -750,29 +725,9 @@ class App():
 		return str(p.stdout.read())[3:-1]
 
 	
-	# ALERT BOX
+	# CUSTOM MESSAGE BOX
 	def showPermissionDeniedFiles(self, msg, file_list):
 		CustomInfoList(msg, self.root, file_list).show()
-		return
-
-
-		self.sub_win = Toplevel(self.root)
-		self.sub_win.resizable(True, True)
-		self.sub_win.grab_set()
-		frame_font = tkFont.Font(size=13, weight="bold")
-		self.main_sub_frame = LabelFrame(self.sub_win, text="Liste des fichiers n'ayant pas été copiés", font=frame_font, labelanchor="n", borderwidth=0, bg=self.main_theme, fg="white")
-		self.main_sub_frame.pack(side=TOP, expand=True, fill=BOTH, padx=0, pady=0)
-
-		self.sub_yscrollbar = Scrollbar(self.main_sub_frame, bg=self.main_theme, orient=VERTICAL)
-		self.sub_yscrollbar.pack(side=RIGHT, padx=(0,5), pady=(5,5), fill=Y)
-		self.sub_xscrollbar = Scrollbar(self.main_sub_frame, bg=self.main_theme, orient=HORIZONTAL)
-		self.sub_xscrollbar.pack(side=BOTTOM, padx=(5,5), pady=(0,5), fill=X)
-
-		self.sub_text = Text(self.main_sub_frame, fg="white", bg=self.main_theme, width=100, height=15, wrap="none", yscrollcommand=self.sub_yscrollbar.set, xscrollcommand=self.sub_xscrollbar.set)
-		self.sub_text.pack(side=TOP, expand=True, fill=BOTH, padx=5, pady=5)
-		self.sub_yscrollbar.config(command=self.sub_text.yview)
-		self.sub_xscrollbar.config(command=self.sub_text.xview)
-		self.sub_text.insert(0.0, '\n'.join(self.permissionDeniedFiles))
 
 	def showError(self, msg):
 		CustomError(msg, self.root).show()
@@ -794,8 +749,6 @@ class App():
 		self.delete_selected_DST_button['state'] = DISABLED
 		self.select_folder_DST_button['state'] = DISABLED
 		self.start_save['state'] = DISABLED
-		#self.file.entryconfig(0, state=DISABLED)
-		#self.file.entryconfig(2, state=DISABLED)
 		for element in list(self.user_data["PRESET"].keys()):
 			self.presetbar.entryconfig(self.presetbar.index(element), state=DISABLED)
 
@@ -808,8 +761,6 @@ class App():
 		self.delete_selected_DST_button['state'] = NORMAL
 		self.select_folder_DST_button['state'] = NORMAL
 		self.start_save['state'] = NORMAL
-		#self.file.entryconfig(0, state=NORMAL)
-		#self.file.entryconfig(2, state=NORMAL)
 		for element in list(self.user_data["PRESET"].keys()):
 			self.presetbar.entryconfig(self.presetbar.index(element), state=NORMAL)
 

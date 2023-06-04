@@ -1,6 +1,9 @@
 from tkinter import *
 from tkinter import font as tkFont
 
+# Written by FMA ;)
+# this file contains 4 class of top level window.
+# They are used in main program to replace default tkinter message box
 
 class CustomError(Toplevel):
 	def __init__(self, msg, root):
@@ -13,19 +16,15 @@ class CustomError(Toplevel):
 		self.minsizeX = 230
 		self.minsizeY = 120
 		self.minsize(self.minsizeX, self.minsizeY)
-		
 		self.resizable(False, False)
 		self.attributes('-topmost', 'true')
 		self.protocol("WM_DELETE_WINDOW", self.on_closing)
 		self.error_label = Label(self, text=msg, wraplength=200, justify=LEFT)
 		self.error_label.pack(side=TOP, expand=True, fill=X, padx=5, pady=5)
-
 		self.button_frame = Frame(self, bg=self.main_theme_light, width=50)
 		self.button_frame.pack(side=BOTTOM, expand=False, fill=X, padx=0, pady=0)
-
 		self.error_button = Button(self.button_frame, command=self.on_button_ok_click, text="OK", width=8)
 		self.error_button.pack(side=TOP, expand=False, padx=5, pady=5)
-
 
 	def show(self):
 		self.setPosition()
@@ -35,17 +34,14 @@ class CustomError(Toplevel):
 		self.grab_release()
 		return self.value.get()
 
-
 	def setPosition(self):
 		self.geometry("+%d+%d" % (self.parent.winfo_x() + self.parent.winfo_width()/2 - self.minsizeX/2, self.parent.winfo_y() + self.parent.winfo_height()/2 - self.minsizeY/2))
-
 
 	def on_button_ok_click(self):
 		self.value.set(True)
 		#print("Root X,Y, W,H :", self.parent.winfo_x(),self.parent.winfo_y(), self.parent.winfo_width(), self.parent.winfo_height())
 		#print("Top  X,Y, W,H :", self.winfo_x(),self.winfo_y(), self.winfo_width(), self.winfo_height())
 		self.destroy()
-
 
 	def on_closing(self):
 		self.destroy()
@@ -91,7 +87,6 @@ class CustomInfo(Toplevel):
 
 	def on_closing(self):
 		self.destroy()
-
 
 
 
@@ -144,8 +139,6 @@ class CustomYesNo(Toplevel):
 
 
 
-
-
 class CustomInfoList(Toplevel):
 	def __init__(self, msg, root, file_list):
 		Toplevel.__init__(self, root)
@@ -185,11 +178,3 @@ class CustomInfoList(Toplevel):
 
 	def on_closing(self):
 		self.destroy()
-
-
-if __name__ == '__main__':
-	w = Tk()
-	w.geometry("700x400")
-	CustomError("Ceci est un message d'erreur vraiment très très long hein il n'est pas pret de se terminer !", w)
-	w.mainloop()
-

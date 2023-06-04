@@ -8,7 +8,6 @@ from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
 
 
-
 class CustomThread(Thread):
 	def __init__(self, wk_ev, wk_lk, dataset, b_size, print_lock, cpt_sh):
 		Thread.__init__(self)
@@ -19,7 +18,6 @@ class CustomThread(Thread):
 		self.working_list = []
 		self.print_lock = print_lock
 		self.cpt_shared = cpt_sh
-
 
 	def run(self):
 		while True:
@@ -87,19 +85,12 @@ class CustomThread(Thread):
 		self.print_lock.acquire()
 		print("[", get_ident(), "] : ---------------- Worker's Job Completed")
 		self.print_lock.release()
-			
-
 
 	def signal_handler(self):
 		self.print_lock.acquire()
 		print("[", get_ident(), "] : Signal Received Quitting")
 		self.print_lock.release()
 		exit(0)
-
-
-
-
-
 
 
 
@@ -115,19 +106,15 @@ class CustomThreadPool(Thread):
 		self.batch_size = b_size
 		self.print_lock = print_lock
 		self.cpt = [0]
-		#signal.signal(signal.SIGSTOP, signal_handler)
-
 
 	def run(self):
 		print("Start Worker Pool")
 		for i in range(cpu_count()):
-			# CustomThread(self, wk_ev, wk_lk, dataset, b_size)
 			w = CustomThread(self.worker_event, self.worker_lock, self.dataset, self.batch_size, self.print_lock, self.cpt)
 			w.start()
 			self.workerList.append(w)
 
 		while True:
-			#print("--------------------------------> THREAD POOL EVENT :", self.threadpool_event.is_set())
 			if(self.threadpool_event.is_set()):
 				self.signal_handler()
 				break
@@ -137,48 +124,12 @@ class CustomThreadPool(Thread):
 				break
 			#sleep(0.3)
 		print("FILE COPIED :", self.cpt[0])
-	
-
-
-	#def run(self):
-	#	print("start pool")
-	#	with ThreadPoolExecutor(self.pool_size) as self.threadPool:
-	#		while len(self.dataset) > 0 or not self.threadPool._shutdown:
-	#			if(self.event.is_set()):
-	#				self.signal_handler()
-	#			if(self.threadPool._work_queue.qsize() < self.pool_size):
-	#				#print("Queue size : %s" % self.threadPool._work_queue.qsize())
-	#				w = self.threadPool.submit(self.task)
-	#				print(vars(w))
-	#				w.cancel()
-	#			#print(vars(self.threadPool))
-	#			#print(self.threadPool._work_queue)
-	#			#sleep(10)
-	#			if(len(self.dataset) > 0):
-	#				self.dataset.pop()
-	#				print(self.dataset)
-	#
-	#
-	#	print("Fin de la boucle")
-	#	for r in self.threadPool._work_queue:
-	#		print(type(r))
-			#if(not r.cancelled()):
-			#	r.result()
-
-
-	def task(self):
-		#print(" [Working:%s] " % self.submited)
-		sleep(1)
-
 
 	def signal_handler(self):
 		self.worker_event.set()
 		for worker in self.workerList:
 			worker.join()
 		return
-
-
-
 
 
 
@@ -190,32 +141,17 @@ class WatcherThread(Thread):
 		self.dataset = dataset
 		self.print_lock = print_lock
 
-
 	def run(self):
 		while True:
-			if(len(self.dataset) == 0 or self.worker_event.is_set()):
+			if(len(self.dataset)) == 0 or self.worker_event.is_set():
 				self.signal_handler()
-				break
-			self.print_lock.acquire()
-			print("DATA_SET SIZE :", len(self.dataset))
-			self.print_lock.release()
-			sleep(1)
-
+			#self.print_lock.acquire()
+			#print("DATA_SET SIZE :", len(self.dataset))
+			#self.print_lock.release()
+			#sleep(1)
 
 	def signal_handler(self):
-		self.print_lock.acquire()
-		print("[", get_ident(), "] : Signal Received Watcher Quitting")
-		self.print_lock.release()
+		#self.print_lock.acquire()
+		#print("[", get_ident(), "] : Signal Received Watcher Quitting")
+		#self.print_lock.release()
 		exit(0)
-
-
-
-
-class CustomError(Toplevel):
-	def __init__(self, msg):
-		Toplevel.__init__(self)
-		self.error_label = Label(self, text=msg)
-		self.error_label.pack(side=TOP, expand=True, fill=X, padx=5, pady=5)
-		self.error_button = Button(self, command=self.destroy, text="OK")
-		self.error_button.pack(side=TOP, expand=False, padx=5, pady=5)
-		self.attributes('-topmost', 'true')
