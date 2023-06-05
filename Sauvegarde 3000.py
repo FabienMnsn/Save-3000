@@ -269,7 +269,7 @@ class App():
 		self.t1 = CustomWatcherThread(self, self.threadPoolEvent, self.srcSet, self.logger)
 		self.t1.start()
 
-		self.t2 = CustomThreadPool(self, self.threadPoolEvent, self.srcSet, self.dstList, 30, self.logger, self.permissionDeniedFiles, self.cpt)
+		self.t2 = CustomThreadPool(self, self.threadPoolEvent, self.srcSet, self.dstList, 100, self.logger, self.permissionDeniedFiles, self.cpt)
 		self.t2.start()
 		self.lockButtons()
 

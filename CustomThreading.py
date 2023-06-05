@@ -84,7 +84,7 @@ class CustomThread(Thread):
 								#self.logger.info(f"[THREAD_ID:%s] 10", get_ident())
 								shutil.copy2(p, d+parent_path)
 								self.working_list.remove(p)
-								self.logger.info(f"[THREAD_ID:%s] File has changed since last backup, copying new file %s to %s", get_ident(), p, d+parent_path)
+								#self.logger.info(f"[THREAD_ID:%s] File has changed since last backup, copying new file %s to %s", get_ident(), p, d+parent_path)
 							except Exception as e:
 								#self.logger.info(f"[THREAD_ID:%s] 11", get_ident())
 								self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
@@ -97,7 +97,7 @@ class CustomThread(Thread):
 			else:
 				if(len(self.srcSet) > 0):
 					#self.logger.info(f"[THREAD_ID:%s] 12", get_ident())
-					self.logger.info(f"[THREAD_ID:%s] Grabbing data from srcSet", get_ident())
+					#self.logger.info(f"[THREAD_ID:%s] Grabbing data from srcSet", get_ident())
 					for i in range(self.batch_size):
 						try:
 							#self.logger.info(f"[THREAD_ID:%s] 14", get_ident())
@@ -107,7 +107,7 @@ class CustomThread(Thread):
 								self.worker_lock.release()
 						except KeyError:
 							#self.logger.info(f"[THREAD_ID:%s] 15", get_ident())
-							self.logger.info(f"[THREAD_ID:%s] Set is empty, breaking", get_ident())
+							#self.logger.info(f"[THREAD_ID:%s] Set is empty, breaking", get_ident())
 							break
 				else:
 					#self.logger.info(f"[THREAD_ID:%s] 17", get_ident())
