@@ -2,12 +2,14 @@ import shutil
 import logging
 import os
 import hashlib
+import humanfriendly
+from datetime import timedelta
 from tkinter import *
 from threading import Thread
 from threading import get_ident
 from threading import Event
 from threading import Lock
-from time import sleep
+from time import sleep, time
 from multiprocessing import cpu_count
 
 
@@ -152,6 +154,7 @@ class CustomThreadPool(Thread):
 		self.cpt_lock = Lock()
 
 	def run(self):
+		starttime = time()
 		self.logger.info(f"[THREAD_ID:%s] : Starting threadpool thread", get_ident())
 		for i in range(cpu_count()):
 			w = CustomThread(self.worker_event, self.worker_lock, self.srcSet, self.dstList, self.batch_size, self.logger, self.fileErrorList, self.cpt, self.cpt_lock)
@@ -166,13 +169,12 @@ class CustomThreadPool(Thread):
 				for w in self.workerList:
 					w.join()
 				break
-		self.root.unlockButtons()
+		self.root.setExecTime(time() - starttime)
 
 	def signal_handler(self):
 		self.worker_event.set()
 		for worker in self.workerList:
 			worker.join()
-		self.root.unlockButtons()
 		self.logger.info(f"[THREAD_ID:%s] : Stopping threadpool thread", get_ident())
 		return
 
@@ -196,18 +198,18 @@ class CustomWatcherThread(Thread):
 			if(self.root.getCpt()) == self.init_size or self.worker_event.is_set():
 				break
 			self.root.setProgress(self.root.getCpt())
-			#self.root.setProgress(self.init_size - len(self.srcSet))
-			#self.root.setFileCounter(str(self.init_size - len(self.srcSet))+" / "+str(self.init_size)+" file(s)")
 			self.root.setFileCounter(str(self.root.getCpt())+" / "+str(self.init_size)+" file(s)")
 			sleep(0.05)
-		#self.root.setProgress(self.init_size - len(self.srcSet))
-		#self.root.setFileCounter(str(self.init_size - len(self.srcSet))+" / "+str(self.init_size)+" file(s)")
 
 		self.root.setProgress(self.root.getCpt())
 		self.root.setFileCounter(str(self.root.getCpt())+" / "+str(self.init_size)+" file(s)")
+		self.root.showInfo("Information", "Sauvegarde effectuée en " + humanfriendly.format_timespan(timedelta(seconds=self.root.getExecTime())))
+		self.root.resetCpt()
 		self.root.setProgress(0)
 		self.root.setFileCounter("0 / "+str(self.init_size)+" file(s)")
-		self.signal_handler()
+		self.root.unlockButtons()
+		self.logger.info(f"[THREAD_ID:%s] : Watcher's job's done", get_ident())
+		exit(0)
 
 	def signal_handler(self):
 		self.logger.info(f"[THREAD_ID:%s] : Watcher received quit signal", get_ident())

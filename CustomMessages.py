@@ -6,14 +6,14 @@ from tkinter import font as tkFont
 # They are used in main program to replace default tkinter message box
 
 class CustomError(Toplevel):
-	def __init__(self, msg, root):
+	def __init__(self, title, msg, root):
 		Toplevel.__init__(self, root)
-		self.title("Erreur")
+		self.title(title)
 		self.main_theme_light = "grey85"
 		self.main_theme = "grey35"
 		self.parent = root
 		self.value = BooleanVar(value=False)
-		self.minsizeX = 230
+		self.minsizeX = 250
 		self.minsizeY = 120
 		self.minsize(self.minsizeX, self.minsizeY)
 		self.resizable(False, False)
@@ -50,14 +50,14 @@ class CustomError(Toplevel):
 
 
 class CustomInfo(Toplevel):
-	def __init__(self, msg, root):
+	def __init__(self, title, msg, root):
 		Toplevel.__init__(self, root)
-		self.title("Information")
+		self.title(title)
 		self.main_theme_light = "grey85"
 		self.main_theme = "grey35"
 		self.parent = root
 		self.value = BooleanVar(value=False)
-		self.minsizeX = 230
+		self.minsizeX = 250
 		self.minsizeY = 120
 		self.minsize(self.minsizeX, self.minsizeY)
 		self.resizable(False, False)
@@ -99,7 +99,7 @@ class CustomYesNo(Toplevel):
 		self.main_theme = "grey35"
 		self.parent = root
 		self.value = BooleanVar(value=False)
-		self.minsizeX = 230
+		self.minsizeX = 250
 		self.minsizeY = 120
 		self.minsize(self.minsizeX, self.minsizeY)
 		self.resizable(False, False)
@@ -140,9 +140,9 @@ class CustomYesNo(Toplevel):
 
 
 class CustomInfoList(Toplevel):
-	def __init__(self, msg, root, file_list):
+	def __init__(self, title, msg, root, file_list):
 		Toplevel.__init__(self, root)
-		self.title("Information")
+		self.title(title)
 		self.main_theme_light = "grey85"
 		self.main_theme = "grey35"
 		self.parent = root

@@ -43,7 +43,7 @@ class App():
 		# MENU BAR
 		self.menubar = Menu(self.root, bg=self.main_theme, fg=self.text_color, activebackground="white", activeforeground='black')
 		self.file = Menu(self.menubar, tearoff=0, bg=self.main_theme, fg=self.text_color, font=self.main_font)
-		self.file.add_command(label="Informations", command=lambda: self.showPermissionDeniedFiles("Liste des fichiers n'ayant pas été copiés (erreur de permission)", self.permissionDeniedFiles))
+		self.file.add_command(label="Informations", command=lambda: self.showPermissionDeniedFiles("Information", "Liste des fichiers n'ayant pas été copiés (erreur de permission)", self.permissionDeniedFiles))
 		self.file.add_command(label="Threads Info", command=self.INFO)
 		self.file.add_separator()
 		self.file.add_command(label="Quitter", command=self.on_root_closing)
@@ -67,6 +67,8 @@ class App():
 		self.t2 = None
 		self.threadPoolEvent = Event()
 		self.cpt = IntVar(value=0)
+		self.execTime = 0
+
 		self.mainWatcherThread = None
 		self.mainPoolThread = None
 		self.poolThreadList = []
@@ -199,15 +201,21 @@ class App():
 	def setFileCounter(self, str_value):
 		self.fileCounter['text'] = str_value
 
+	def setExecTime(self, value):
+		self.execTime = value
+
+	def getExecTime(self):
+		return self.execTime
+
 
 	def startThreadedSave(self):
 		if(self.getAllDST() == []):
 			self.logger.error(f"[THREAD_ID:%s] Aucun dossier de destination spécifié pour la sauvegarde.", get_ident())
-			self.showError("Aucun dossier de destination n'a été spécifié pour la sauvegarde.")
+			self.showError("Erreur", "Aucun dossier de destination n'a été spécifié pour la sauvegarde.")
 			return
 		if(not self.isDSTsafe()):
 			self.logger.info(f"[THREAD_ID:%s] La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.", get_ident())
-			self.showError("La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.")
+			self.showError("Erreur", "La destination de sauvegarde ne peut pas etre comprise dans le répertoire à sauvegarder.")
 			return
 		res = self.showYesNo("Validation", "Etes-vous sûr de vouloir\nlancer la sauvegarde?")
 		if(res):
@@ -395,7 +403,7 @@ class App():
 					self.dst_listbox.insert(index, path)
 					index += 1
 				else:
-					self.showError("Le lecteur de destination est absent ou la lettre de lecteur et son numéro de série ne correspondent pas pour le chemin enregistré dans \"Dossier(s) de sauvegarde\" :\n"+path)
+					self.showError("Erreur", "Le lecteur de destination est absent ou la lettre de lecteur et son numéro de série ne correspondent pas pour le chemin enregistré dans \"Dossier(s) de sauvegarde\" :\n"+path)
 
 			return
 			for i in range(len(dst_list)):
@@ -419,7 +427,7 @@ class App():
 			file.close()
 			return 0, data
 		except Exception as e:
-			self.showError(e)
+			self.showError("Erreur", e)
 			return -1, e
 
 
@@ -432,11 +440,11 @@ class App():
 		if(user_file != ""):
 			code, data = self.loadData("./"+user_file)
 			if(code == -1):
-				self.showError("Error while reading user config file !\n" + data)
+				self.showError("Erreur", "Erreur de lecture du fichier de configuration utilisateur !\n" + data)
 			else:
 				self.user_data = data
 		else:
-			self.showInfo("Aucun fichier de configuration existant n'a été trouvé.\nUn nouveau fichier sera créé.")
+			self.showInfo("Information", "Aucun fichier de configuration existant n'a été trouvé.\nUn nouveau fichier sera créé.")
 			f = open("./user-config.json", "w")
 			#new_user_data = {"LAST PRESET":"", "PRESET":{"1":{"SRC":{},"DST":{}}}}
 			new_user_data = {"LAST PRESET":"", "PRESET":{}}
@@ -504,6 +512,8 @@ class App():
 	def getCpt(self):
 		return self.cpt.get()
 
+	def resetCpt(self):
+		self.cpt.set(0)
 
 	def getSelectedSRC(self):
 		res = []
@@ -626,14 +636,14 @@ class App():
 
 	
 	# CUSTOM MESSAGE BOX
-	def showPermissionDeniedFiles(self, msg, file_list):
-		CustomInfoList(msg, self.root, file_list).show()
+	def showPermissionDeniedFiles(self, title, msg, file_list):
+		CustomInfoList(title, msg, self.root, file_list).show()
 
-	def showError(self, msg):
-		CustomError(msg, self.root).show()
+	def showError(self, title, msg):
+		CustomError(title, msg, self.root).show()
 
 	def showInfo(self, title, msg):
-		CustomInfo(msg, self.root).show()
+		CustomInfo(title, msg, self.root).show()
 
 	def showYesNo(self, title, msg):
 		res = CustomYesNo(title, msg, self.root).show()
