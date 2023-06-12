@@ -44,7 +44,7 @@ class App():
 		self.menubar = Menu(self.root, bg=self.main_theme, fg=self.text_color, activebackground="white", activeforeground='black')
 		self.file = Menu(self.menubar, tearoff=0, bg=self.main_theme, fg=self.text_color, font=self.main_font)
 		self.file.add_command(label="Informations", command=lambda: self.showPermissionDeniedFiles("Information", "Liste des fichiers n'ayant pas été copiés (erreur de permission)", self.permissionDeniedFiles))
-		self.file.add_command(label="Threads Info", command=self.INFO)
+		self.file.add_command(label="Réglages", command=self.openPreferencesWindow)
 		self.file.add_separator()
 		self.file.add_command(label="Quitter", command=self.on_root_closing)
 		self.menubar.add_cascade(label="Fichier", menu=self.file)
@@ -62,6 +62,7 @@ class App():
 		self.logger = logging.getLogger()
 		# BOOLEAN
 		self.saveStarted = False
+		self.none_hash_date = IntVar(value=2) # 0=no file check, 1=file hash check, 2=file date check(default)
 		# THREADS
 		self.t1 = None
 		self.t2 = None
@@ -494,6 +495,32 @@ class App():
 		return diskID
 
 
+
+	def openPreferencesWindow(self):
+		self.sub_win = Toplevel(self.root)
+		self.sub_win.resizable(False, False)
+		self.sub_win.grab_set()
+		frame_font = tkFont.Font(size=13, weight="bold")
+		self.main_preference_frame = LabelFrame(self.sub_win, text="Options de sauvegarde", font=frame_font, labelanchor="n", borderwidth=0)#, bg=self.main_theme, fg="white")
+		self.main_preference_frame.pack(side=TOP)
+		self.radio_button_none = Radiobutton(self.main_preference_frame, text="Aucune comparaison des fichiers (nouvelle copie intégrale -> lent)", variable=self.none_hash_date, value=0) #, bg=self.main_theme, fg="white", justify=LEFT)
+		self.radio_button_none.pack(side=TOP)
+		self.radio_button_hash = Radiobutton(self.main_preference_frame, text="Comparaison des fichiers par hash (lent mais précis)", variable=self.none_hash_date, value=1)#, bg=self.main_theme, fg="white", justify=LEFT)
+		self.radio_button_hash.pack(side=TOP)
+		self.radio_button_date = Radiobutton(self.main_preference_frame, text="Comparaison des fichiers par date (rapide mais sujet à imprécision)", variable=self.none_hash_date, value=2)#, bg=self.main_theme, fg="white", justify=LEFT)
+		self.radio_button_date.pack(side=TOP)
+
+		self.validation_frame = Frame(self.main_preference_frame, borderwidth=0, bg=self.main_theme)
+		self.validation_frame.pack(side=TOP, padx=10, pady=10)
+
+		self.validate_button = Button(self.validation_frame, text="Enregistrer et quitter", relief="raised", bg=self.main_button_color, fg="white")
+		self.validate_button['command'] = lambda window=self.sub_win:self.ExitPreferences(window)
+		self.validate_button.pack(side=TOP)
+
+
+	def ExitPreferences(self, window):
+		print("VALUE :", self.none_hash_date.get())
+
 	def INFO(self):
 		if(self.t1 != None):
 			print(self.t1)
@@ -508,6 +535,12 @@ class App():
 			print("t2 dead")
 		#	print(f"Main Pool Thread is dead.")
 
+
+	def getCheckHash(self):
+		return self.check_hash
+
+	def getCheckFileDate(self):
+		return self.check_date
 
 	def getCpt(self):
 		return self.cpt.get()

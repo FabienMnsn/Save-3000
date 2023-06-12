@@ -14,7 +14,7 @@ from multiprocessing import cpu_count
 
 
 class CustomThread(Thread):
-	def __init__(self, wk_ev, wk_lk, srcSet, dstList, b_size, logger, fileErrorList, cpt, cpt_lock):
+	def __init__(self, wk_ev, wk_lk, srcSet, dstList, b_size, logger, fileErrorList, cpt, cpt_lock, check_none_hash_date):
 		Thread.__init__(self)
 		self.worker_event = wk_ev
 		self.worker_lock = wk_lk
@@ -26,17 +26,14 @@ class CustomThread(Thread):
 		self.permissionDeniedFiles = fileErrorList
 		self.cpt = cpt
 		self.cpt_lock = cpt_lock
+		self.check_none_hash_date =check_none_hash_date
 
 	def run(self):
 		while True:
-			#self.logger.info(f"[THREAD_ID:%s] 1", get_ident())
 			if(self.worker_event.is_set()):
 				self.logger.info(f"[THREAD_ID:%s] Worker received quit signal", get_ident())
 				self.signal_handler()
-			#self.logger.info(f"[THREAD_ID:%s] 2", get_ident())
 			if(len(self.working_list) > 0):
-				#self.logger.info(f"[THREAD_ID:%s] 3", get_ident())
-				# do copy file
 				for d in self.dstList:
 					for p in self.working_list:
 						if(self.worker_event.is_set()):
@@ -44,28 +41,36 @@ class CustomThread(Thread):
 							self.signal_handler()
 						parent_path = os.path.dirname(os.path.splitdrive(p)[1])
 						file_name = os.path.basename(os.path.splitdrive(p)[1])
-						if(os.path.exists(d+parent_path+'/'+file_name)):
-							#self.logger.info(f"[THREAD_ID:%s] 4", get_ident())
+						if(os.path.exists(d+parent_path+'/'+file_name) and (self.check_none_hash_date == 1 or self.check_none_hash_date == 2)):
 							try:
-								#self.logger.info(f"[THREAD_ID:%s] 4.1", get_ident())
-								if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
-									#self.logger.info(f"[THREAD_ID:%s] 4.2", get_ident())
-									try:
-										#self.logger.info(f"[THREAD_ID:%s] 5", get_ident())
-										shutil.copy2(p, d+parent_path)
+								if(self.check_hash):
+									if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
+										try:
+											shutil.copy2(p, d+parent_path)
+											self.working_list.remove(p)
+											self.logger.info(f"[THREAD_ID:%s] File has changed or doesn't exist in last backup, copying new file %s to %s", get_ident(), p, d+parent_path)
+										except Exception as e:
+											self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
+											self.permissionDeniedFiles.append(p)
+											self.working_list.remove(p)
+											continue
+									else:
 										self.working_list.remove(p)
-										self.logger.info(f"[THREAD_ID:%s] File has changed or doesn't exist in last backup, copying new file %s to %s", get_ident(), p, d+parent_path)
-									except Exception as e:
-										#self.logger.info(f"[THREAD_ID:%s] 6", get_ident())
-										self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
-										self.permissionDeniedFiles.append(p)
+								if(self.check_date):
+									if(self.isFileDateNewer(p, d+parent_path+'/'+file_name)):
+										try:
+											shutil.copy2(p, d+parent_path)
+											self.working_list.remove(p)
+											self.logger.info(f"[THREAD_ID:%s] File date is newer in src than in last backup, copying new file %s to %s", get_ident(), p, d+parent_path)
+										except Exception as e:
+											self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
+											self.permissionDeniedFiles.append(p)
+											self.working_list.remove(p)
+											continue
+									else:
 										self.working_list.remove(p)
-										continue
-								else:
-									#self.logger.info(f"[THREAD_ID:%s] 4.3", get_ident())
-									self.working_list.remove(p)
+
 							except Exception as e:
-								#self.logger.info(f"[THREAD_ID:%s] 7", get_ident())
 								self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
 								self.permissionDeniedFiles.append(p)
 								self.working_list.remove(p)
@@ -75,18 +80,14 @@ class CustomThread(Thread):
 							self.cpt_lock.release()
 						else:
 							try:
-								#self.logger.info(f"[THREAD_ID:%s] 8", get_ident())
 								os.makedirs(d+parent_path, exist_ok=True)
 							except Exception as e:
-								#self.logger.info(f"[THREAD_ID:%s] 9", get_ident())
 								self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
 							try:
-								#self.logger.info(f"[THREAD_ID:%s] 10", get_ident())
 								shutil.copy2(p, d+parent_path)
 								self.working_list.remove(p)
-								#self.logger.info(f"[THREAD_ID:%s] File has changed since last backup, copying new file %s to %s", get_ident(), p, d+parent_path)
+								self.logger.info(f"[THREAD_ID:%s] Copying file (without checking date nor hash) %s to %s", get_ident(), p, d+parent_path)
 							except Exception as e:
-								#self.logger.info(f"[THREAD_ID:%s] 11", get_ident())
 								self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
 								self.permissionDeniedFiles.append(p)
 								self.working_list.remove(p)
@@ -96,21 +97,15 @@ class CustomThread(Thread):
 							self.cpt_lock.release()
 			else:
 				if(len(self.srcSet) > 0):
-					#self.logger.info(f"[THREAD_ID:%s] 12", get_ident())
-					#self.logger.info(f"[THREAD_ID:%s] Grabbing data from srcSet", get_ident())
 					for i in range(self.batch_size):
 						try:
-							#self.logger.info(f"[THREAD_ID:%s] 14", get_ident())
 							self.worker_lock.acquire()
 							self.working_list.append(self.srcSet.pop())
 							if(self.worker_lock.locked()):
 								self.worker_lock.release()
 						except KeyError:
-							#self.logger.info(f"[THREAD_ID:%s] 15", get_ident())
-							#self.logger.info(f"[THREAD_ID:%s] Set is empty, breaking", get_ident())
 							break
 				else:
-					#self.logger.info(f"[THREAD_ID:%s] 17", get_ident())
 					break
 		self.logger.info(f"[THREAD_ID:%s] Worker's job completed", get_ident())
 
@@ -119,7 +114,7 @@ class CustomThread(Thread):
 		exit(0)
 
 	def calculateHashFile(self, file):
-		BUF_SIZE = 1048576#65536
+		BUF_SIZE = 1048576
 		sha1 = hashlib.sha1()
 		with open(file, 'rb') as f:
 			while True:
@@ -133,6 +128,14 @@ class CustomThread(Thread):
 	def hasFileChanged(self, file1, file2):
 		if(os.path.exists(file1) and os.path.exists(file2)):
 			return self.calculateHashFile(file1) != self.calculateHashFile(file2)
+
+
+	def isFileDateNewer(self, file1, file2):
+		if(os.path.exists(file1) and os.path.exists(file2)):
+			if(os.path.getmtime(file1) > os.path.getmtime(file2)):
+				print("F1 newer than F2")
+			return os.path.getmtime(file1) > os.path.getmtime(file2)
+
 
 
 
@@ -157,7 +160,7 @@ class CustomThreadPool(Thread):
 		starttime = time()
 		self.logger.info(f"[THREAD_ID:%s] : Starting threadpool thread", get_ident())
 		for i in range(cpu_count()):
-			w = CustomThread(self.worker_event, self.worker_lock, self.srcSet, self.dstList, self.batch_size, self.logger, self.fileErrorList, self.cpt, self.cpt_lock)
+			w = CustomThread(self.worker_event, self.worker_lock, self.srcSet, self.dstList, self.batch_size, self.logger, self.fileErrorList, self.cpt, self.cpt_lock, self.root.none_hash_date.get())
 			w.start()
 			self.workerList.append(w)
 
