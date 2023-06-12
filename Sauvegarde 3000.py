@@ -148,8 +148,8 @@ class App():
 
 		self.dst_listbox = Listbox(self.dst_listboxFrame, bg=self.main_theme, fg=self.text_color, width=65, height=1, selectmode=MULTIPLE, yscrollcommand=self.dst_yscrollbar.set, xscrollcommand=self.dst_xscrollbar.set)
 		self.dst_listbox.pack(side=TOP, expand=True, fill=BOTH, padx=(5,5), pady=(5,5))
-		self.src_yscrollbar.config(command=self.dst_listbox.yview)
-		self.src_xscrollbar.config(command=self.dst_listbox.xview)
+		self.dst_yscrollbar.config(command=self.dst_listbox.yview)
+		self.dst_xscrollbar.config(command=self.dst_listbox.xview)
 
 		self.dst_button_frame = Frame(self.dst_frame, bg=self.main_theme)
 		self.dst_button_frame.pack(side=TOP, fill=X)
