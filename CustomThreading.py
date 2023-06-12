@@ -26,7 +26,7 @@ class CustomThread(Thread):
 		self.permissionDeniedFiles = fileErrorList
 		self.cpt = cpt
 		self.cpt_lock = cpt_lock
-		self.check_none_hash_date =check_none_hash_date
+		self.check_none_hash_date = check_none_hash_date
 
 	def run(self):
 		while True:
@@ -43,7 +43,7 @@ class CustomThread(Thread):
 						file_name = os.path.basename(os.path.splitdrive(p)[1])
 						if(os.path.exists(d+parent_path+'/'+file_name) and (self.check_none_hash_date == 1 or self.check_none_hash_date == 2)):
 							try:
-								if(self.check_hash):
+								if(self.check_none_hash_date == 1):
 									if(self.hasFileChanged(p, d+parent_path+'/'+file_name)):
 										try:
 											shutil.copy2(p, d+parent_path)
@@ -56,7 +56,7 @@ class CustomThread(Thread):
 											continue
 									else:
 										self.working_list.remove(p)
-								if(self.check_date):
+								if(self.check_none_hash_date == 2):
 									if(self.isFileDateNewer(p, d+parent_path+'/'+file_name)):
 										try:
 											shutil.copy2(p, d+parent_path)
@@ -132,8 +132,6 @@ class CustomThread(Thread):
 
 	def isFileDateNewer(self, file1, file2):
 		if(os.path.exists(file1) and os.path.exists(file2)):
-			if(os.path.getmtime(file1) > os.path.getmtime(file2)):
-				print("F1 newer than F2")
 			return os.path.getmtime(file1) > os.path.getmtime(file2)
 
 

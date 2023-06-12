@@ -519,7 +519,8 @@ class App():
 
 
 	def ExitPreferences(self, window):
-		print("VALUE :", self.none_hash_date.get())
+		window.destroy()
+
 
 	def INFO(self):
 		if(self.t1 != None):
@@ -692,6 +693,7 @@ class App():
 		self.delete_selected_DST_button['state'] = DISABLED
 		self.select_folder_DST_button['state'] = DISABLED
 		self.start_save['state'] = DISABLED
+		self.file.entryconfig(1, state=DISABLED)
 		for element in list(self.user_data["PRESET"].keys()):
 			self.presetbar.entryconfig(self.presetbar.index(element), state=DISABLED)
 
@@ -704,6 +706,7 @@ class App():
 		self.delete_selected_DST_button['state'] = NORMAL
 		self.select_folder_DST_button['state'] = NORMAL
 		self.start_save['state'] = NORMAL
+		self.file.entryconfig(1, state=NORMAL)
 		for element in list(self.user_data["PRESET"].keys()):
 			self.presetbar.entryconfig(self.presetbar.index(element), state=NORMAL)
 
