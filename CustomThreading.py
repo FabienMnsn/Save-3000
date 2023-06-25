@@ -158,7 +158,7 @@ class CustomThreadPool(Thread):
 
 	def run(self):
 		starttime = time()
-		self.logger.info(f"[THREAD_ID:%s] : Starting threadpool thread", get_ident())
+		self.logger.info(f"[THREAD_ID:%s] Starting threadpool thread", get_ident())
 		for i in range(cpu_count()):
 			w = CustomThread(self.worker_event, self.worker_lock, self.srcSet, self.dstList, self.batch_size, self.logger, self.fileErrorList, self.cpt, self.cpt_lock, self.root.none_hash_date.get())
 			w.start()
@@ -178,7 +178,7 @@ class CustomThreadPool(Thread):
 		self.worker_event.set()
 		for worker in self.workerList:
 			worker.join()
-		self.logger.info(f"[THREAD_ID:%s] : Stopping threadpool thread", get_ident())
+		self.logger.info(f"[THREAD_ID:%s] Stopping threadpool thread", get_ident())
 		return
 
 
@@ -196,7 +196,7 @@ class CustomWatcherThread(Thread):
 		self.root.setProgress(0)
 
 	def run(self):
-		self.logger.info(f"[THREAD_ID:%s] : Starting watcher thread", get_ident())
+		self.logger.info(f"[THREAD_ID:%s] Starting watcher thread", get_ident())
 		while True:
 			if(self.root.getCpt() == self.init_size or self.worker_event.is_set()):
 				break
@@ -211,11 +211,11 @@ class CustomWatcherThread(Thread):
 		self.root.setProgress(0)
 		self.root.setFileCounter("0 / "+str(self.init_size)+" file(s)")
 		self.root.unlockButtons()
-		self.logger.info(f"[THREAD_ID:%s] : Watcher's job's done", get_ident())
+		self.logger.info(f"[THREAD_ID:%s] Watcher's job's done", get_ident())
 		exit(0)
 
 	def signal_handler(self):
-		self.logger.info(f"[THREAD_ID:%s] : Watcher received quit signal", get_ident())
+		self.logger.info(f"[THREAD_ID:%s] Watcher received quit signal", get_ident())
 		exit(0)
 
 
@@ -231,7 +231,7 @@ class CustomFileCounter(Thread):
 
 	def run(self):
 		self.root.lockButtons()
-		self.logger.info(f"[THREAD_ID:%s] : Counting total number of files to save to destination", get_ident())
+		self.logger.info(f"[THREAD_ID:%s] Counting total number of files to save to destination", get_ident())
 		tt = 0
 		try:
 			for src in self.srcSet:
@@ -245,7 +245,7 @@ class CustomFileCounter(Thread):
 					for f in files:
 						tt += 1
 			self.root.setFileCounter("0 / "+str(tt)+" file(s)")
-			self.logger.info(f"[THREAD_ID:%s] : File counting done, total files to save : %d", get_ident(), tt)
+			self.logger.info(f"[THREAD_ID:%s] File counting done, total files to save : %d", get_ident(), tt)
 			self.root.unlockButtons()
 			return tt
 		except Exception as e:
@@ -254,6 +254,6 @@ class CustomFileCounter(Thread):
 
 	def signal_handler(self):
 		self.root.setFileCounter("Calcul du nombre de fichiers à sauvegarder annulé")
-		self.logger.info(f"[THREAD_ID:%s] : File counter thread received quit signal", get_ident())
+		self.logger.info(f"[THREAD_ID:%s] File counter thread received quit signal", get_ident())
 		self.root.lockButtons()
 		exit(0)
