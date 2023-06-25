@@ -15,11 +15,10 @@ from tkinter import font as tkFont
 
 from threading import Thread, Lock, Event, get_ident
 from multiprocessing import cpu_count
-from concurrent.futures import ThreadPoolExecutor	# TO DELETE WHEN NEW VERSION IS INTEGRATED
 
 # Importing my own modules ;)
 from CustomMessages import CustomError, CustomInfo, CustomYesNo, CustomInfoList
-from CustomThreading import CustomThread, CustomThreadPool, CustomWatcherThread
+from CustomThreading import CustomThread, CustomThreadPool, CustomWatcherThread, CustomFileCounter
 
 # This code was written by FMA ;)
 
@@ -61,21 +60,18 @@ class App():
 		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 		self.logger = logging.getLogger()
 		# BOOLEAN
-		self.saveStarted = False
 		self.none_hash_date = IntVar(value=2) # 0=no file check, 1=file hash check, 2=file date check(default)
 		# THREADS
 		self.t1 = None
 		self.t2 = None
+		self.t3 = None
 		self.threadPoolEvent = Event()
+		self.fileCounterEvent = Event()
 		self.cpt = IntVar(value=0)
 		self.execTime = 0
 
 		self.mainWatcherThread = None
 		self.mainPoolThread = None
-		self.poolThreadList = []
-		self.threadPool = None
-		self.onCloseLock = Lock()
-		self.PATH_SET_LOCK = Lock()
 		self.SAVING = False
 		# DATA SET & LIST
 		self.srcSet = None
@@ -228,9 +224,9 @@ class App():
 		self.oldSRCList.sort()
 		currentSRCList.sort()
 		if(currentSRCList != self.oldSRCList):
-			self.fileCounter['text'] = "Updating"
-			ttfiles = self.countSRC(self.getAllSRC())
-			self.fileCounter['text'] = "0 / "+str(ttfiles)+" file(s)"
+			self.fileCounter['text'] = "Calcul en cours..."
+			self.t3 = CustomFileCounter(self, self.getAllSRC(), self.fileCounterEvent, self.logger)
+			self.t3.start()
 
 
 	def countSRC(self, src_list):
@@ -266,7 +262,6 @@ class App():
 		self.dstList = self.getAllDST()
 		self.srcSet = self.parseSRC(self.getAllSRC())
 
-		# NEW VERSION
 		self.t1 = CustomWatcherThread(self, self.threadPoolEvent, self.srcSet, self.logger)
 		self.t1.start()
 
@@ -285,13 +280,18 @@ class App():
 						self.loadSRC()
 					if(self.user_data["PRESET"][self.current_preset]["DST"] != {}):
 						self.loadDST()
+					if(self.user_data["PRESET"][self.current_preset]["FILE-CHECK"] != None):
+						self.none_hash_date.set(self.user_data["PRESET"][self.current_preset]["FILE-CHECK"])
 
 
 	def on_root_closing(self):
+		if(self.t3 != None and self.t3.is_alive()):
+			self.fileCounterEvent.set()
+
 		if((self.t1 != None and self.t1.is_alive()) or (self.t2 != None and self.t2.is_alive())):
 			res = self.showYesNo("Quitter", "Etes-vous sûr de vouloir quitter le programme avant la fin de la sauvegarde?\n La sauvegarde ne sera pas complète.")
 			if(res):
-				self.logger.info("User has closed main window")
+				self.logger.info("User has aborted save, closing main window")
 				self.threadPoolEvent.set()
 				self.root.destroy()
 		else:
@@ -304,7 +304,6 @@ class App():
 			else:
 				self.user_data["LAST PRESET"] = ""
 			self.writeUserData()
-		#self.root.destroy()
 
 
 	def openFolderDialog(self):
@@ -317,7 +316,7 @@ class App():
 
 	def saveCurrentPreset(self, name):
 		if(self.user_data != None):
-			self.user_data["PRESET"][name] = {"SRC":self.getAllSRC(),"DST":self.getDST()}
+			self.user_data["PRESET"][name] = {"SRC":self.getAllSRC(),"DST":self.getDST(), "FILE-CHECK":self.none_hash_date.get()}
 			self.current_preset = name
 			self.updateCurrentPresetLabel()
 			self.writeUserData()
@@ -368,6 +367,7 @@ class App():
 		self.main_input_frame.pack(side=TOP)
 		self.name_entry = Entry(self.main_input_frame, bg=self.main_theme_light, bd=0, width=25, font=self.main_font, fg=self.text_color)
 		self.name_entry.focus_set()
+		self.name_entry.insert(END, self.current_preset)
 		self.name_entry.pack(side=LEFT, padx=5, pady=5)
 		self.save_button = Button(self.main_input_frame, text="Enregistrer et quitter", relief="raised", bg=self.main_button_color, fg="white")
 		self.save_button['command'] = lambda window=self.pop_up:self.saveInputName(window)
@@ -447,7 +447,6 @@ class App():
 		else:
 			self.showInfo("Information", "Aucun fichier de configuration existant n'a été trouvé.\nUn nouveau fichier sera créé.")
 			f = open("./user-config.json", "w")
-			#new_user_data = {"LAST PRESET":"", "PRESET":{"1":{"SRC":{},"DST":{}}}}
 			new_user_data = {"LAST PRESET":"", "PRESET":{}}
 			json.dump(new_user_data, f, indent=4)
 			f.close()
@@ -500,15 +499,15 @@ class App():
 		self.sub_win = Toplevel(self.root)
 		self.sub_win.resizable(False, False)
 		self.sub_win.grab_set()
-		frame_font = tkFont.Font(size=13, weight="bold")
-		self.main_preference_frame = LabelFrame(self.sub_win, text="Options de sauvegarde", font=frame_font, labelanchor="n", borderwidth=0)#, bg=self.main_theme, fg="white")
+		self.frame_font = tkFont.Font(size=13, weight="bold")
+		self.main_preference_frame = LabelFrame(self.sub_win, text="Options de sauvegarde", font=self.frame_font, labelanchor="n", borderwidth=0)
 		self.main_preference_frame.pack(side=TOP)
-		self.radio_button_none = Radiobutton(self.main_preference_frame, text="Aucune comparaison des fichiers (nouvelle copie intégrale -> lent)", variable=self.none_hash_date, value=0) #, bg=self.main_theme, fg="white", justify=LEFT)
-		self.radio_button_none.pack(side=TOP)
-		self.radio_button_hash = Radiobutton(self.main_preference_frame, text="Comparaison des fichiers par hash (lent mais précis)", variable=self.none_hash_date, value=1)#, bg=self.main_theme, fg="white", justify=LEFT)
-		self.radio_button_hash.pack(side=TOP)
-		self.radio_button_date = Radiobutton(self.main_preference_frame, text="Comparaison des fichiers par date (rapide mais sujet à imprécision)", variable=self.none_hash_date, value=2)#, bg=self.main_theme, fg="white", justify=LEFT)
-		self.radio_button_date.pack(side=TOP)
+		self.radio_button_none = Radiobutton(self.main_preference_frame, text="Copie des fichiers sans comparaison avec les fichiers déjà présents (lent)", variable=self.none_hash_date, value=0, anchor=W)
+		self.radio_button_none.pack(side=TOP, expand=False, fill=BOTH)
+		self.radio_button_hash = Radiobutton(self.main_preference_frame, text="Copie des fichiers avec comparaison par calulc de hash (lent mais précis)", variable=self.none_hash_date, value=1, anchor=W)
+		self.radio_button_hash.pack(side=TOP, expand=True, fill=BOTH)
+		self.radio_button_date = Radiobutton(self.main_preference_frame, text="Copie des fichiers avec comparaison des dates (rapide mais sujet à imprécision)", variable=self.none_hash_date, value=2, anchor=W)
+		self.radio_button_date.pack(side=TOP, expand=False, fill=BOTH)
 
 		self.validation_frame = Frame(self.main_preference_frame, borderwidth=0, bg=self.main_theme)
 		self.validation_frame.pack(side=TOP, padx=10, pady=10)
@@ -519,22 +518,9 @@ class App():
 
 
 	def ExitPreferences(self, window):
+		self.user_data["PRESET"][self.current_preset]["FILE-CHECK"] = self.none_hash_date.get()
+		self.writeUserData()
 		window.destroy()
-
-
-	def INFO(self):
-		if(self.t1 != None):
-			print(self.t1)
-			#print("Main Watcher Thread : %s is alive : %s." % (self.mainWatcherThread._ident, self.mainWatcherThread.is_alive()))
-		else:
-			print("t1 dead")
-		#	print(f"Main Watcher Thread is dead.")
-		if(self.t2 != None):
-			print(self.t2)
-			#print("Main Pool Thread : %s is alive : %s." % (self.mainPoolThread._ident, self.mainPoolThread.is_alive()))
-		else:
-			print("t2 dead")
-		#	print(f"Main Pool Thread is dead.")
 
 
 	def getCheckHash(self):
@@ -718,10 +704,5 @@ if __name__ == '__main__':
 
 # TODO LIST
 
-
-# 	-	Re faire le programme en lançant X threads custom, chaque thread est actif du début à la fin de la copie et tourner à l'infini tant que le data set n'est pas vide (dans l'idée c'est pour ce passer du thread pool qui ne fonctionne pas exactement comme je le souhaite)
-
-#	-	Terminer les threads à la fin d'une sauvegarde -> ne fonctionne pas à corriger
+#	-	Ajouter une option dans le mejnu réglages pour activer ou non les logs (NONE, ERROR ou INFO)
 #	-	Ajouter un compteur de temps passé au lancement de la sauvegarde (en bas à gauche du bouton "Lancer la sauvegarde")
-#	-	Problème les scrollbars ne fonctionnent pas correctement.
-#	-	Changer les messages box par une classe custom

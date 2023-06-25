@@ -86,7 +86,10 @@ class CustomThread(Thread):
 							try:
 								shutil.copy2(p, d+parent_path)
 								self.working_list.remove(p)
-								self.logger.info(f"[THREAD_ID:%s] Copying file (without checking date nor hash) %s to %s", get_ident(), p, d+parent_path)
+								if(self.check_none_hash_date == 0):
+									self.logger.info(f"[THREAD_ID:%s] Copying file (without checking date nor hash) %s to %s", get_ident(), p, d+parent_path)
+								else:
+									self.logger.info(f"[THREAD_ID:%s] Copying new file %s to %s", get_ident(), p, d+parent_path)
 							except Exception as e:
 								self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
 								self.permissionDeniedFiles.append(p)
@@ -133,7 +136,6 @@ class CustomThread(Thread):
 	def isFileDateNewer(self, file1, file2):
 		if(os.path.exists(file1) and os.path.exists(file2)):
 			return os.path.getmtime(file1) > os.path.getmtime(file2)
-
 
 
 
@@ -196,7 +198,7 @@ class CustomWatcherThread(Thread):
 	def run(self):
 		self.logger.info(f"[THREAD_ID:%s] : Starting watcher thread", get_ident())
 		while True:
-			if(self.root.getCpt()) == self.init_size or self.worker_event.is_set():
+			if(self.root.getCpt() == self.init_size or self.worker_event.is_set()):
 				break
 			self.root.setProgress(self.root.getCpt())
 			self.root.setFileCounter(str(self.root.getCpt())+" / "+str(self.init_size)+" file(s)")
@@ -214,4 +216,44 @@ class CustomWatcherThread(Thread):
 
 	def signal_handler(self):
 		self.logger.info(f"[THREAD_ID:%s] : Watcher received quit signal", get_ident())
+		exit(0)
+
+
+
+
+class CustomFileCounter(Thread):
+	def __init__(self, root, srcSet, ct_ev, logger):
+		Thread.__init__(self)
+		self.root = root
+		self.srcSet = srcSet
+		self.counter_event = ct_ev
+		self.logger = logger
+
+	def run(self):
+		self.root.lockButtons()
+		self.logger.info(f"[THREAD_ID:%s] : Counting total number of files to save to destination", get_ident())
+		tt = 0
+		try:
+			for src in self.srcSet:
+				if(self.counter_event.is_set()):
+					self.signal_handler()
+				if(os.path.isfile(src)):
+						tt += 1
+				for root, dirs, files in os.walk(src):
+					if(self.counter_event.is_set()):
+						self.signal_handler()
+					for f in files:
+						tt += 1
+			self.root.setFileCounter("0 / "+str(tt)+" file(s)")
+			self.logger.info(f"[THREAD_ID:%s] : File counting done, total files to save : %d", get_ident(), tt)
+			self.root.unlockButtons()
+			return tt
+		except Exception as e:
+			self.logger.error(f"[THREAD_ID:%s] Exception occurred", get_ident(), exc_info=True)
+			self.logger.error(f"[THREAD_ID:%s] File counter thread exited with error", get_ident())
+
+	def signal_handler(self):
+		self.root.setFileCounter("Calcul du nombre de fichiers à sauvegarder annulé")
+		self.logger.info(f"[THREAD_ID:%s] : File counter thread received quit signal", get_ident())
+		self.root.lockButtons()
 		exit(0)
