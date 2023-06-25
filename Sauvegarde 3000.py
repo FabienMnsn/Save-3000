@@ -57,7 +57,7 @@ class App():
 		self.user_data = None
 		self.current_preset = None
 		# LOGGING CONFIGURATION
-		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
+		logging.basicConfig(filename='Sauvegarde-3000.log', filemode='w', format='%(asctime)s %(levelname)s %(message)s', level=logging.ERROR, datefmt='%Y-%m-%d %H:%M:%S')
 		self.logger = logging.getLogger()
 		# BOOLEAN
 		self.none_hash_date = IntVar(value=2) # 0=no file check, 1=file hash check, 2=file date check(default)
@@ -265,7 +265,7 @@ class App():
 		self.t1 = CustomWatcherThread(self, self.threadPoolEvent, self.srcSet, self.logger)
 		self.t1.start()
 
-		self.t2 = CustomThreadPool(self, self.threadPoolEvent, self.srcSet, self.dstList, 100, self.logger, self.permissionDeniedFiles, self.cpt)
+		self.t2 = CustomThreadPool(self, self.threadPoolEvent, self.srcSet, self.dstList, 20, self.logger, self.permissionDeniedFiles, self.cpt)
 		self.t2.start()
 		self.lockButtons()
 
